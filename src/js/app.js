@@ -39,9 +39,7 @@ function applyTheme(theme, { persist = true } = {}) {
   }
 
   const nextLabel = next === 'dark' ? 'الوضع النهاري' : 'الوضع الليلي';
-  const modeLabel = document.getElementById('themeModeLabel');
-  if (modeLabel) modeLabel.textContent = nextLabel;
-  [document.getElementById('sidebarThemeToggle'), document.getElementById('topbarThemeToggle')]
+  [document.getElementById('topbarThemeToggle')]
     .filter(Boolean)
     .forEach((btn) => {
       btn.title = `التبديل إلى ${nextLabel}`;
@@ -91,7 +89,6 @@ function initAppearanceControls() {
   applyTheme(currentTheme(), { persist: false });
   applySidebarState(savedCollapsed, { persist: false });
 
-  document.getElementById('sidebarThemeToggle')?.addEventListener('click', toggleTheme);
   document.getElementById('topbarThemeToggle')?.addEventListener('click', toggleTheme);
   document.getElementById('sidebarToggle')?.addEventListener('click', toggleSidebar);
   document.getElementById('topbarSidebarToggle')?.addEventListener('click', toggleSidebar);

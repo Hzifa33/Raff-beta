@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self';" />
 <title>رَفّ — نظام فهرسة المكتبات</title>
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg" />
 <script src="js/theme-init.js"></script>
 <link rel="stylesheet" href="css/fonts.css" />
 <link rel="stylesheet" href="css/tokens.css" />
@@ -11,6 +12,7 @@
 <link rel="stylesheet" href="css/redesign.css" />
 <link rel="stylesheet" href="css/minimalist.css" />
 <link rel="stylesheet" href="css/shadcn-raff.css" />
+<link rel="stylesheet" href="css/polish.css" />
 </head>
 <body>
 
@@ -52,7 +54,11 @@
         </div>
       </div>
       <button class="rail-control" id="sidebarToggle" title="طي القائمة الجانبية" aria-label="طي القائمة الجانبية" aria-expanded="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/><path d="M20 4v16"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3.25" y="3.25" width="17.5" height="17.5" rx="3.25" />
+          <path d="M15.75 3.75v16.5" />
+          <path class="rail-chevron" d="m10.75 8.75-3.25 3.25 3.25 3.25" />
+        </svg>
       </button>
     </div>
 
@@ -97,16 +103,9 @@
     </nav>
 
     <div class="sidebar-footer">
-      <button class="sidebar-utility" id="sidebarThemeToggle" title="تبديل المظهر" aria-label="تبديل المظهر">
-        <span class="utility-icon theme-icon" aria-hidden="true">
-          <svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg>
-          <svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-        </span>
-        <span class="utility-copy"><b id="themeModeLabel">الوضع الليلي</b><small>مظهر مريح للعين</small></span>
-      </button>
-      <a href="#" id="devCreditLink" class="credit-link" title="فتح Hzifa33.github.io" aria-label="تطوير Hzifa33">
-        <span class="credit-avatar">H</span>
-        <span class="credit-copy"><small>صُنع بإتقان بواسطة</small><b>Hzifa33</b></span>
+      <a href="#" id="devCreditLink" class="credit-link" title="تطوير Hzifa33" aria-label="تطوير Hzifa33 — فتح الموقع">
+        <span class="credit-avatar" aria-hidden="true"><img src="../assets/favicon.svg" alt="" /></span>
+        <span class="credit-copy"><small>تطوير</small><b>Hzifa33</b></span>
         <svg viewBox="0 0 24 24" class="credit-external" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
       </a>
     </div>

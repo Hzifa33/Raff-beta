@@ -277,12 +277,16 @@ function showBookDetails(bookId) {
 
         ${book.notes ? `<div class="detail-notes"><p>${escapeHtml(book.notes)}</p></div>` : ''}
 
-        <div class="form-actions detail-actions">
-          <button class="btn btn-outline btn-sm" id="detailEdit">${icon('edit')} تعديل</button>
-          <button class="btn btn-outline btn-sm" id="detailPrintLabel">${icon('printer')} طباعة الملصق</button>
-          <button class="btn btn-outline btn-sm" id="detailPdfLabel">${icon('download')} حفظ PDF</button>
-          <button class="btn btn-outline btn-sm" id="detailCopyRef">${icon('hash')} نسخ الرقم</button>
-          <button class="btn btn-danger btn-sm" id="detailDelete">${icon('trash')} حذف</button>
+        <div class="detail-actions" aria-label="إجراءات الكتاب">
+          <div class="detail-actions-primary">
+            <button class="btn btn-outline btn-sm" id="detailEdit">${icon('edit')} تعديل</button>
+            <button class="btn btn-outline btn-sm" id="detailPrintLabel">${icon('printer')} طباعة الملصق</button>
+            <button class="btn btn-outline btn-sm" id="detailPdfLabel">${icon('download')} حفظ PDF</button>
+            <button class="btn btn-outline btn-sm" id="detailCopyRef">${icon('hash')} نسخ الرقم</button>
+          </div>
+          <div class="detail-actions-danger">
+            <button class="btn btn-danger btn-sm" id="detailDelete">${icon('trash')} حذف الكتاب</button>
+          </div>
         </div>
       </div>
 

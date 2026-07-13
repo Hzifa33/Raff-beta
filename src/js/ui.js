@@ -30,12 +30,13 @@ function toast(message, type = 'info', timeout = 3200, action = null) {
   setTimeout(dismiss, timeout);
 }
 
-function openModal(innerHtml, { onMount } = {}) {
+function openModal(innerHtml, { onMount, modalClass = '' } = {}) {
   closeModal();
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.id = 'activeModalOverlay';
-  overlay.innerHTML = `<div class="modal" role="dialog" aria-modal="true">${innerHtml}</div>`;
+  const classAttr = ['modal', modalClass].filter(Boolean).join(' ');
+  overlay.innerHTML = `<div class="${classAttr}" role="dialog" aria-modal="true">${innerHtml}</div>`;
   overlay.addEventListener('mousedown', (e) => {
     if (e.target === overlay) closeModal();
   });

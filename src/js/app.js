@@ -4,7 +4,7 @@ const ROUTES = {
   dashboard: { title: 'لوحة المعلومات', subtitle: 'نظرة عامة على مكتبتك', render: (root) => renderDashboard(root) },
   search: { title: 'البحث المتقدم', subtitle: 'بحث استكشافي حي ببطاقات — للعثور السريع على كتاب', render: (root, ctx) => renderBookBrowser(root, ctx) },
   add: { title: 'إضافة كتاب جديد', subtitle: 'سجّل بيانات كتاب جديد في المكتبة', render: (root) => renderAddForm(root, null) },
-  library: { title: 'السجل الكامل', subtitle: 'جدول قابل للفرز بكل أعمدة المكتبة', render: (root) => {
+  library: { title: 'السجل الكامل', subtitle: 'عرض منظم قابل للفرز، بما في ذلك وقت الإضافة', render: (root) => {
     const quick = document.getElementById('quickSearchInput');
     if (quick) quick.value = '';
     renderLibraryTable(root);
@@ -60,6 +60,7 @@ function applySidebarState(collapsed, { persist = true } = {}) {
   document.documentElement.classList.remove('sidebar-precollapsed');
   document.body.classList.toggle('sidebar-collapsed', !!collapsed);
   document.body.classList.toggle('sidebar-expanded', !collapsed);
+  hideSidebarTooltip();
   if (persist) {
     try { localStorage.setItem(UI_PREFS.sidebar, String(!!collapsed)); } catch (_) {}
   }
@@ -83,6 +84,81 @@ function toggleSidebar() {
   applySidebarState(!sidebarIsCollapsed());
 }
 
+let _sidebarTooltip = null;
+let _sidebarTooltipTarget = null;
+
+function ensureSidebarTooltip() {
+  if (_sidebarTooltip) return _sidebarTooltip;
+  const el = document.createElement('div');
+  el.className = 'sidebar-tooltip';
+  el.setAttribute('role', 'tooltip');
+  el.hidden = true;
+  document.body.appendChild(el);
+  _sidebarTooltip = el;
+  return el;
+}
+
+function hideSidebarTooltip() {
+  if (!_sidebarTooltip) return;
+  _sidebarTooltip.hidden = true;
+  _sidebarTooltip.classList.remove('is-visible');
+  _sidebarTooltipTarget = null;
+}
+
+function showSidebarTooltip(target) {
+  if (!sidebarIsCollapsed() || !target) return;
+  const label = target.dataset.tooltip || target.getAttribute('aria-label') || '';
+  if (!label) return;
+
+  const tip = ensureSidebarTooltip();
+  tip.textContent = label;
+  tip.hidden = false;
+  tip.classList.add('is-visible');
+  _sidebarTooltipTarget = target;
+
+  const rect = target.getBoundingClientRect();
+  const tipRect = tip.getBoundingClientRect();
+  const gap = 10;
+  const left = Math.max(8, rect.left - tipRect.width - gap);
+  const top = Math.min(
+    window.innerHeight - tipRect.height - 8,
+    Math.max(8, rect.top + (rect.height - tipRect.height) / 2)
+  );
+  tip.style.left = `${Math.round(left)}px`;
+  tip.style.top = `${Math.round(top)}px`;
+}
+
+function initSidebarTooltips() {
+  const sidebar = document.getElementById('sidebar');
+  if (!sidebar) return;
+
+  sidebar.querySelectorAll('.nav-item, .credit-link').forEach((el) => {
+    const label = el.getAttribute('title') || el.getAttribute('aria-label') || '';
+    if (label) el.dataset.tooltip = label;
+    // Native title bubbles are clipped by the application rail and may appear
+    // at inconsistent positions. The dedicated tooltip below is accessible,
+    // immediate and always rendered outside the clipped shell.
+    el.removeAttribute('title');
+  });
+
+  sidebar.addEventListener('pointerover', (event) => {
+    const target = event.target.closest('.nav-item, .credit-link');
+    if (target && target !== _sidebarTooltipTarget) showSidebarTooltip(target);
+  });
+  sidebar.addEventListener('pointerout', (event) => {
+    const target = event.target.closest('.nav-item, .credit-link');
+    if (!target) return;
+    if (!event.relatedTarget || !target.contains(event.relatedTarget)) hideSidebarTooltip();
+  });
+  sidebar.addEventListener('focusin', (event) => {
+    const target = event.target.closest('.nav-item, .credit-link');
+    if (target) showSidebarTooltip(target);
+  });
+  sidebar.addEventListener('focusout', hideSidebarTooltip);
+  sidebar.addEventListener('scroll', hideSidebarTooltip, { passive: true });
+  window.addEventListener('resize', hideSidebarTooltip, { passive: true });
+}
+
 function initAppearanceControls() {
   let savedCollapsed = false;
   try { savedCollapsed = localStorage.getItem(UI_PREFS.sidebar) === 'true'; } catch (_) {}
@@ -92,9 +168,11 @@ function initAppearanceControls() {
   document.getElementById('topbarThemeToggle')?.addEventListener('click', toggleTheme);
   document.getElementById('sidebarToggle')?.addEventListener('click', toggleSidebar);
   document.getElementById('topbarSidebarToggle')?.addEventListener('click', toggleSidebar);
+  initSidebarTooltips();
 }
 
 function navigateTo(route, ctx = {}) {
+  hideSidebarTooltip();
   currentRoute = route;
   currentCtx = ctx;
   renderRoute();
@@ -107,7 +185,10 @@ function renderRoute() {
 
   document.querySelectorAll('.nav-item').forEach((el) => {
     const navRoute = el.dataset.route;
-    el.classList.toggle('active', navRoute === currentRoute || (navRoute === 'library' && currentRoute === 'edit'));
+    const active = navRoute === currentRoute || (navRoute === 'library' && currentRoute === 'edit');
+    el.classList.toggle('active', active);
+    if (active) el.setAttribute('aria-current', 'page');
+    else el.removeAttribute('aria-current');
   });
 
   const root = document.getElementById('viewRoot');

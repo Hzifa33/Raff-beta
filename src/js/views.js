@@ -1011,7 +1011,7 @@ function renderAddForm(root, editingBook) {
   const meta = RAFF_STATE.meta;
 
   root.innerHTML = `
-    <div class="panel form-panel">
+    <div class="panel form-panel add-book-panel">
       <div class="panel-header">
         <div>
           <h2 class="panel-title">${isEdit ? 'تعديل بيانات الكتاب' : 'إضافة كتاب جديد'}</h2>
@@ -1019,7 +1019,7 @@ function renderAddForm(root, editingBook) {
         </div>
       </div>
 
-      <form id="bookForm" novalidate>
+      <form id="bookForm" class="book-form-compact" novalidate>
         <div class="form-grid">
           <div class="field span-2" id="field-title">
             <label>${icon('book')} اسم الكتاب <span class="required">*</span></label>
@@ -1226,48 +1226,77 @@ function categoryPool() {
    Library table (distinct from search: columnar, sortable, dense)
    ========================================================= */
 const LIBRARY_COLUMNS = [
-  { key: 'title', label: 'العنوان', align: 'start', grow: 1.6, min: 150 },
-  { key: 'author', label: 'المؤلف', align: 'start', grow: 1.1, min: 110 },
-  { key: 'publisher', label: 'دار النشر', align: 'start', grow: 1.1, min: 110, hide: 'md' },
-  { key: 'category', label: 'المجال', align: 'start', grow: 0.9, min: 90, hide: 'narrow' },
-  { key: 'publishYear', label: 'السنة', align: 'center', grow: 0.6, min: 64, hide: 'narrow' },
-  { key: 'createdAt', label: 'تاريخ الإضافة', align: 'center', grow: 0.9, min: 104, hide: 'md' },
-  { key: 'volumes', label: 'أجزاء', align: 'center', grow: 0.5, min: 60, hide: 'md' },
-  { key: 'price', label: 'السعر', align: 'center', grow: 0.7, min: 70, hide: 'narrow' },
-  { key: 'availableCopies', label: 'متاح / الكل', align: 'center', grow: 0.8, min: 96 },
-  { key: 'status', label: 'الحالة', align: 'center', grow: 0.9, min: 96 },
-  { key: 'referenceNumber', label: 'الرقم المرجعي', align: 'center', grow: 1, min: 130, ltr: true },
+  { key: 'title', label: 'العنوان', align: 'start', grow: 2.1, min: 170, priority: 1 },
+  { key: 'author', label: 'المؤلف', align: 'start', grow: 1.25, min: 110, priority: 1 },
+  { key: 'publisher', label: 'دار النشر', align: 'start', grow: 1.15, min: 105, priority: 3 },
+  { key: 'category', label: 'المجال', align: 'start', grow: 1, min: 88, priority: 2 },
+  { key: 'publishYear', label: 'السنة', align: 'center', grow: 0.55, min: 58, priority: 3 },
+  { key: 'createdAt', label: 'وقت الإضافة', align: 'center', grow: 1.05, min: 122, priority: 1 },
+  { key: 'volumes', label: 'الأجزاء', align: 'center', grow: 0.55, min: 62, priority: 3 },
+  { key: 'price', label: 'السعر', align: 'center', grow: 0.68, min: 70, priority: 2 },
+  { key: 'availableCopies', label: 'متاح / الكل', align: 'center', grow: 0.82, min: 92, priority: 1 },
+  { key: 'status', label: 'الحالة', align: 'center', grow: 0.82, min: 88, priority: 1 },
+  { key: 'referenceNumber', label: 'الرقم المرجعي', align: 'center', grow: 1.05, min: 124, priority: 1, ltr: true },
 ];
 
-// User-adjusted column widths (px), keyed by column key. Empty = use fr grow.
-let _libColWidths = {};
-let _libResizeHandler = null;
-let _libVisibleCount = 0;
+let _libResizeObserver = null;
+let _libVisibleSignature = '';
+let _libMeasuredWidth = 0;
 
-/** Columns visible at the current viewport width (mirrors the CSS breakpoints). */
+/**
+ * The table responds to its actual content width, not the outer window width.
+ * This is important because the expanded rail can remove more than 230px from
+ * the usable area. Lower-priority metadata is hidden before horizontal scroll
+ * can ever become necessary.
+ */
+function libraryContentWidth() {
+  const panel = document.querySelector('.library-panel');
+  const root = document.getElementById('viewRoot');
+  return Math.max(0, _libMeasuredWidth || panel?.clientWidth || root?.clientWidth || window.innerWidth);
+}
+
 function visibleLibColumns() {
-  const w = window.innerWidth;
-  return LIBRARY_COLUMNS.filter((c) => {
-    if (c.hide === 'md' && w <= 1280) return false;
-    if (c.hide === 'narrow' && w <= 1180) return false;
-    return true;
-  });
+  const w = libraryContentWidth();
+  const maxPriority = w >= 1320 ? 3 : w >= 970 ? 2 : 1;
+  return LIBRARY_COLUMNS.filter((c) => c.priority <= maxPriority);
 }
 
-/** Builds the CSS grid template string from the currently visible columns. */
+/** Flexible tracks always fit the available width; no horizontal scrolling. */
 function libGridTemplate() {
-  return visibleLibColumns().map((c) => {
-    const wpx = _libColWidths[c.key];
-    return wpx ? `${wpx}px` : `minmax(${c.min || 80}px, ${c.grow}fr)`;
-  }).join(' ');
+  return visibleLibColumns().map((c) => `minmax(0, ${c.grow}fr)`).join(' ');
 }
 
-const LIB_ROW_HEIGHT = 44;
+const LIB_ROW_HEIGHT = 46;
 const LIB_ROW_GAP = 0;
 const LIB_ROW_STEP = LIB_ROW_HEIGHT + LIB_ROW_GAP;
 
 let _libSort = { key: 'title', dir: 'asc' };
 let _libFilters = { query: '', status: 'all', priceMin: '', priceMax: '' };
+
+const LIB_SORT_OPTIONS = [
+  { value: 'createdAt:desc', label: 'وقت الإضافة: الأحدث' },
+  { value: 'createdAt:asc', label: 'وقت الإضافة: الأقدم' },
+  { value: 'title:asc', label: 'العنوان: أ ← ي' },
+  { value: 'title:desc', label: 'العنوان: ي ← أ' },
+  { value: 'author:asc', label: 'المؤلف: أ ← ي' },
+  { value: 'author:desc', label: 'المؤلف: ي ← أ' },
+  { value: 'publisher:asc', label: 'دار النشر: أ ← ي' },
+  { value: 'publisher:desc', label: 'دار النشر: ي ← أ' },
+  { value: 'category:asc', label: 'المجال: أ ← ي' },
+  { value: 'category:desc', label: 'المجال: ي ← أ' },
+  { value: 'publishYear:desc', label: 'سنة النشر: الأحدث' },
+  { value: 'publishYear:asc', label: 'سنة النشر: الأقدم' },
+  { value: 'volumes:desc', label: 'الأكثر أجزاءً' },
+  { value: 'volumes:asc', label: 'الأقل أجزاءً' },
+  { value: 'price:desc', label: 'السعر: الأعلى' },
+  { value: 'price:asc', label: 'السعر: الأقل' },
+  { value: 'availableCopies:desc', label: 'المتاح: الأكثر' },
+  { value: 'availableCopies:asc', label: 'المتاح: الأقل' },
+  { value: 'status:asc', label: 'الحالة: أبجديًا' },
+  { value: 'status:desc', label: 'الحالة: عكسيًا' },
+  { value: 'referenceNumber:asc', label: 'الرقم المرجعي: تصاعدي' },
+  { value: 'referenceNumber:desc', label: 'الرقم المرجعي: تنازلي' },
+];
 let _libVlist = null;
 let _libDebounce = null;
 
@@ -1301,9 +1330,13 @@ function sortLibrary(books, { key, dir }) {
 
 function renderLibraryTable(root) {
   if (_libVlist) { _libVlist.destroy(); _libVlist = null; }
+  if (_libResizeObserver) { _libResizeObserver.disconnect(); _libResizeObserver = null; }
 
+  _libMeasuredWidth = Math.max(0, root.clientWidth - 2);
   const cols = visibleLibColumns();
   const gridTemplate = libGridTemplate();
+  _libVisibleSignature = cols.map((c) => c.key).join('|');
+  const sortValue = `${_libSort.key}:${_libSort.dir}`;
 
   root.innerHTML = `
     <div class="panel library-panel">
@@ -1311,6 +1344,12 @@ function renderLibraryTable(root) {
         <div class="ac-anchor lib-query-wrap">
           <input type="text" id="libQuery" placeholder="تصفية سريعة في الجدول..." autocomplete="off" />
         </div>
+        <label class="lib-sort-control" title="ترتيب السجل">
+          <span>ترتيب</span>
+          <select id="libSortSelect" aria-label="ترتيب السجل الكامل">
+            ${LIB_SORT_OPTIONS.map((opt) => `<option value="${opt.value}" ${opt.value === sortValue ? 'selected' : ''}>${opt.label}</option>`).join('')}
+          </select>
+        </label>
         <div class="chip-toggle" id="libStatusToggle">
           <button data-val="all">الكل</button>
           <button data-val="${RaffBook.STATUS_AVAILABLE}">متاح</button>
@@ -1335,7 +1374,6 @@ function renderLibraryTable(root) {
                 data-sort="${c.key}" style="text-align:${c.align === 'start' ? 'right' : 'center'};">
                 <span class="lib-th-label">${escapeHtml(c.label)}</span><span class="sort-arrow">${c.key === _libSort.key ? (_libSort.dir === 'asc' ? '▲' : '▼') : ''}</span>
               </button>
-              ${i < cols.length - 1 ? `<span class="lib-col-resize" data-resize="${c.key}" title="اسحب لتغيير عرض العمود"></span>` : ''}
             </div>`).join('')}
         </div>
         <div class="lib-scroll" id="libScroll"></div>
@@ -1367,25 +1405,23 @@ function renderLibraryTable(root) {
     renderLibraryTable(root);
   });
 
-  // Column resizing: drag the divider between two headers to set an explicit
-  // pixel width for the column on its right (in RTL, the start-side column).
-  setupColumnResize(root);
-
-  // Rebuild when the viewport crosses a breakpoint so the visible column set
-  // (and the grid template) stays correct. Guarded so we only redraw on an
-  // actual column-set change, not every resize pixel.
-  if (_libResizeHandler) window.removeEventListener('resize', _libResizeHandler);
-  _libVisibleCount = visibleLibColumns().length;
-  _libResizeHandler = () => {
+  // Observe the actual library panel width. Re-render only when crossing a
+  // column-priority threshold, so rail expansion never creates horizontal
+  // scrolling or clipped headings.
+  _libResizeObserver = new ResizeObserver((entries) => {
     if (currentRoute !== 'library') return;
-    const n = visibleLibColumns().length;
-    if (n !== _libVisibleCount) {
-      _libVisibleCount = n;
+    const width = Math.floor(entries[0]?.contentRect?.width || 0);
+    if (!width || Math.abs(width - _libMeasuredWidth) < 2) return;
+    _libMeasuredWidth = width;
+    const signature = visibleLibColumns().map((c) => c.key).join('|');
+    if (signature !== _libVisibleSignature) {
       const host = document.querySelector('#viewRoot') || root;
-      renderLibraryTable(host);
+      requestAnimationFrame(() => renderLibraryTable(host));
+    } else {
+      applyLibGridTemplate(root);
     }
-  };
-  window.addEventListener('resize', _libResizeHandler);
+  });
+  _libResizeObserver.observe(root.querySelector('.library-panel'));
 
   const applyFilters = () => {
     if (_libDebounce) clearTimeout(_libDebounce);
@@ -1394,6 +1430,11 @@ function renderLibraryTable(root) {
   queryInput.addEventListener('input', () => { _libFilters.query = queryInput.value; applyFilters(); });
   root.querySelector('#libPriceMin').addEventListener('input', (e) => { _libFilters.priceMin = e.target.value; applyFilters(); });
   root.querySelector('#libPriceMax').addEventListener('input', (e) => { _libFilters.priceMax = e.target.value; applyFilters(); });
+  root.querySelector('#libSortSelect').addEventListener('change', (e) => {
+    const [key, dir] = e.target.value.split(':');
+    _libSort = { key, dir };
+    renderLibraryTable(root);
+  });
   root.querySelector('#libStatusToggle').addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-val]');
     if (!btn) return;
@@ -1421,55 +1462,7 @@ function bookHasLoanState(book, state) {
   return false;
 }
 
-/**
- * Enables drag-to-resize on the column dividers. Dragging a divider sets an
- * explicit pixel width for the column it belongs to; the grid template then
- * uses that width instead of the flexible fr track. Double-click resets it.
- */
-function setupColumnResize(root) {
-  const head = root.querySelector('#libHead');
-  if (!head) return;
-
-  head.querySelectorAll('.lib-col-resize').forEach((handle) => {
-    const key = handle.dataset.resize;
-    const col = LIBRARY_COLUMNS.find((c) => c.key === key);
-    const minW = (col && col.min) || 60;
-
-    handle.addEventListener('mousedown', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const wrap = handle.closest('.lib-th-wrap');
-      const startX = e.clientX;
-      const startW = wrap.getBoundingClientRect().width;
-      document.body.classList.add('col-resizing');
-
-      const onMove = (ev) => {
-        // RTL: dragging left grows the column, so invert the delta.
-        const delta = startX - ev.clientX;
-        const next = Math.max(minW, Math.round(startW + delta));
-        _libColWidths[key] = next;
-        applyLibGridTemplate(root);
-      };
-      const onUp = () => {
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('mouseup', onUp);
-        document.body.classList.remove('col-resizing');
-      };
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('mouseup', onUp);
-    });
-
-    // Double-click a divider to reset that column to automatic width.
-    handle.addEventListener('dblclick', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      delete _libColWidths[key];
-      applyLibGridTemplate(root);
-    });
-  });
-}
-
-/** Recomputes the CSS grid template from current widths without a full re-render. */
+/** Recomputes the responsive grid tracks without rebuilding row data. */
 function applyLibGridTemplate(root) {
   const table = root.querySelector('.lib-table');
   if (!table) return;
@@ -1511,12 +1504,13 @@ function updateLibraryResults() {
   }
 }
 
-function formatDateShort(iso) {
+function formatDateTimeShort(iso) {
   const t = Date.parse(iso);
   if (!t) return '—';
   const d = new Date(t);
-  // Compact Gregorian date, e.g. 2026/07/12
-  return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+  const date = `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+  const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return `${date} · ${time}`;
 }
 
 function renderLibraryRow(book) {
@@ -1528,18 +1522,22 @@ function renderLibraryRow(book) {
   const price = typeof book.price === 'number' ? formatPrice(book.price) : '—';
   const spine = spineColorFor(book.category || book.author);
 
+  const textCell = (value, fallback = '—') => {
+    const safe = escapeHtml(value) || fallback;
+    return `<span class="lib-cell-text" title="${safe}">${safe}</span>`;
+  };
   const content = {
     title: `<span class="lib-title" title="${escapeHtml(book.title)}">${escapeHtml(book.title) || 'بدون عنوان'}</span>`,
-    author: escapeHtml(book.author) || '—',
-    publisher: escapeHtml(book.publisher) || '—',
-    category: escapeHtml(book.category) || '—',
-    publishYear: escapeHtml(book.publishYear) || '—',
-    createdAt: `<span class="lib-date">${formatDateShort(book.createdAt)}</span>`,
+    author: textCell(book.author),
+    publisher: textCell(book.publisher),
+    category: textCell(book.category),
+    publishYear: textCell(book.publishYear),
+    createdAt: `<span class="lib-date" title="${formatDateTimeShort(book.createdAt)}">${formatDateTimeShort(book.createdAt)}</span>`,
     volumes: book.volumes || 1,
     price: price,
     availableCopies: `<span class="${avail === 0 ? 'num-warn' : 'num-ok'}">${avail}</span><span class="lib-total">/${total}</span>`,
     status: `<span class="lib-status ${statusCls}">${status}</span>`,
-    referenceNumber: escapeHtml(book.referenceNumber),
+    referenceNumber: `<span class="lib-cell-text" title="${escapeHtml(book.referenceNumber)}">${escapeHtml(book.referenceNumber)}</span>`,
   };
 
   const cells = visibleLibColumns().map((c) =>
@@ -2585,6 +2583,7 @@ function showIntegrityReport(report) {
     </div>`;
 
   openModal(html, {
+    modalClass: 'modal-integrity',
     onMount: (overlay) => {
       overlay.querySelector('#integClose').addEventListener('click', closeModal);
       overlay.querySelectorAll('.integrity-item[data-book]').forEach((el) => {

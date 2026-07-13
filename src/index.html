@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self';" />
+<title>رَفّ — نظام فهرسة المكتبات</title>
+<script src="js/theme-init.js"></script>
+<link rel="stylesheet" href="css/fonts.css" />
+<link rel="stylesheet" href="css/tokens.css" />
+<link rel="stylesheet" href="css/app.css" />
+<link rel="stylesheet" href="css/redesign.css" />
+<link rel="stylesheet" href="css/minimalist.css" />
+<link rel="stylesheet" href="css/shadcn-raff.css" />
+</head>
+<body>
+
+<div class="app-root">
+
+<!-- ===================== Custom title bar ===================== -->
+<header class="titlebar" id="titlebar">
+  <div class="titlebar-controls">
+    <button class="win-btn" id="winMinimize" title="تصغير" aria-label="تصغير">
+      <svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true"><rect x="1.5" y="5.5" width="9" height="1.1" fill="currentColor"/></svg>
+    </button>
+    <button class="win-btn" id="winMaximize" title="تكبير" aria-label="تكبير">
+      <svg class="ico-maximize" viewBox="0 0 12 12" width="11" height="11" aria-hidden="true"><rect x="1.6" y="1.6" width="8.8" height="8.8" fill="none" stroke="currentColor" stroke-width="1.1"/></svg>
+      <svg class="ico-restore" viewBox="0 0 12 12" width="11" height="11" aria-hidden="true"><rect x="1.4" y="3.4" width="7.2" height="7.2" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M3.8 3.2V1.4h7.0v7.0H9.0" fill="none" stroke="currentColor" stroke-width="1.1"/></svg>
+    </button>
+    <button class="win-btn win-btn-close" id="winClose" title="إغلاق" aria-label="إغلاق">
+      <svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true"><path d="M1.8 1.8l8.4 8.4M10.2 1.8l-8.4 8.4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+
+  <div class="titlebar-drag"></div>
+
+  <div class="titlebar-brand">
+    <span class="titlebar-title">نظام فهرسة المكتبات</span>
+    <img src="../assets/logo.png" alt="" class="titlebar-logo" />
+  </div>
+</header>
+
+<div class="app-shell">
+
+  <!-- ===================== Sidebar (reading start, right side in RTL) ===================== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-head">
+      <div class="brand">
+        <div class="brand-mark"><img src="../assets/logo.png" alt="رَفّ" class="brand-logo" /></div>
+        <div class="brand-copy">
+          <strong class="brand-name">رَفّ</strong>
+          <span class="brand-tagline">إدارة المكتبة</span>
+        </div>
+      </div>
+      <button class="rail-control" id="sidebarToggle" title="طي القائمة الجانبية" aria-label="طي القائمة الجانبية" aria-expanded="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/><path d="M20 4v16"/></svg>
+      </button>
+    </div>
+
+    <div class="sidebar-rule" aria-hidden="true"><span></span></div>
+
+    <nav class="nav" id="mainNav">
+      <button class="nav-item" data-route="dashboard" title="لوحة المعلومات" aria-label="لوحة المعلومات">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+        <span>لوحة المعلومات</span>
+      </button>
+      <button class="nav-item" data-route="search" title="البحث المتقدم" aria-label="البحث المتقدم">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span>البحث المتقدم</span>
+      </button>
+      <button class="nav-item" data-route="add" title="إضافة كتاب" aria-label="إضافة كتاب">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="9.5" y1="10.5" x2="14.5" y2="10.5"/></svg>
+        <span>إضافة كتاب</span>
+      </button>
+      <button class="nav-item" data-route="library" title="السجل الكامل" aria-label="السجل الكامل">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        <span>السجل الكامل</span>
+        <span class="count" id="navLibraryCount">0</span>
+      </button>
+
+      <div class="nav-group-label">إدارة</div>
+      <button class="nav-item" data-route="scan" title="المسح الضوئي" aria-label="المسح الضوئي">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+        <span>المسح الضوئي</span>
+      </button>
+      <button class="nav-item" data-route="reports" title="الاستدعاء" aria-label="الاستدعاء">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 21H4a1 1 0 0 1-1-1V3"/><path d="M7 15l3.5-4.5 3 2.5L20 6"/><circle cx="20" cy="6" r="1.4" fill="currentColor" stroke="none"/></svg>
+        <span>الاستدعاء</span>
+      </button>
+      <button class="nav-item" data-route="stats" title="الإحصائيات" aria-label="الإحصائيات">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        <span>الإحصائيات</span>
+      </button>
+      <button class="nav-item" data-route="settings" title="الإعدادات والنسخ" aria-label="الإعدادات والنسخ">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span>النسخ الاحتياطي</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="sidebar-utility" id="sidebarThemeToggle" title="تبديل المظهر" aria-label="تبديل المظهر">
+        <span class="utility-icon theme-icon" aria-hidden="true">
+          <svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg>
+          <svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </span>
+        <span class="utility-copy"><b id="themeModeLabel">الوضع الليلي</b><small>مظهر مريح للعين</small></span>
+      </button>
+      <a href="#" id="devCreditLink" class="credit-link" title="فتح Hzifa33.github.io" aria-label="تطوير Hzifa33">
+        <span class="credit-avatar">H</span>
+        <span class="credit-copy"><small>صُنع بإتقان بواسطة</small><b>Hzifa33</b></span>
+        <svg viewBox="0 0 24 24" class="credit-external" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      </a>
+    </div>
+  </aside>
+
+  <!-- ===================== Main content ===================== -->
+  <main class="main">
+    <header class="topbar">
+      <button class="topbar-rail-btn" id="topbarSidebarToggle" title="القائمة الجانبية" aria-label="القائمة الجانبية">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <div class="topbar-titles">
+        <h1 class="page-title" id="pageTitle">لوحة المعلومات</h1>
+        <p class="page-subtitle" id="pageSubtitle">نظرة عامة على مكتبتك</p>
+      </div>
+      <label class="quick-search ac-anchor" aria-label="بحث سريع">
+        <svg viewBox="0 0 24 24" class="rf-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="quickSearchInput" placeholder="ابحث عن عنوان، مؤلف، دار نشر، رقم مرجعي..." />
+        <kbd class="search-kbd">Ctrl K</kbd>
+      </label>
+      <button class="topbar-icon-btn" id="topbarThemeToggle" title="تبديل الوضع النهاري والليلي" aria-label="تبديل الوضع النهاري والليلي">
+        <svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg>
+        <svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+      <button class="btn btn-primary" id="quickAddBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        إضافة كتاب
+      </button>
+    </header>
+
+    <div class="view-scroll" id="viewRoot">
+      <!-- injected by renderer -->
+    </div>
+  </main>
+
+</div>
+
+</div>
+
+<div id="modalRoot"></div>
+<div class="toast-stack" id="toastStack"></div>
+
+<script src="js/icons.js"></script>
+<script src="js/book-status.js"></script>
+<script src="js/search.js"></script>
+<script src="js/autocomplete.js"></script>
+<script src="js/reports.js"></script>
+<script src="js/barcode.js"></script>
+<script src="js/scanner.js"></script>
+<script src="js/virtual-list.js"></script>
+<script src="js/store-bridge.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/views.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

@@ -1249,10 +1249,20 @@ let _libMeasuredWidth = 0;
  * the usable area. Lower-priority metadata is hidden before horizontal scroll
  * can ever become necessary.
  */
+function measureLibraryHostWidth(root = document.getElementById('viewRoot')) {
+  if (!root) return Math.max(0, window.innerWidth);
+  const styles = getComputedStyle(root);
+  const inlinePadding = (parseFloat(styles.paddingInlineStart) || 0)
+    + (parseFloat(styles.paddingInlineEnd) || 0);
+  // Measure the stable content box of viewRoot. Measuring the child panel and
+  // then rebuilding it changed the measurement source on every render, which
+  // could make the visible-column signature oscillate while the sidebar was
+  // expanding and leave the route animation restarting indefinitely.
+  return Math.max(0, root.clientWidth - inlinePadding);
+}
+
 function libraryContentWidth() {
-  const panel = document.querySelector('.library-panel');
-  const root = document.getElementById('viewRoot');
-  return Math.max(0, _libMeasuredWidth || panel?.clientWidth || root?.clientWidth || window.innerWidth);
+  return Math.max(0, _libMeasuredWidth || measureLibraryHostWidth());
 }
 
 function visibleLibColumns() {
@@ -1332,7 +1342,7 @@ function renderLibraryTable(root) {
   if (_libVlist) { _libVlist.destroy(); _libVlist = null; }
   if (_libResizeObserver) { _libResizeObserver.disconnect(); _libResizeObserver = null; }
 
-  _libMeasuredWidth = Math.max(0, root.clientWidth - 2);
+  _libMeasuredWidth = measureLibraryHostWidth(root);
   const cols = visibleLibColumns();
   const gridTemplate = libGridTemplate();
   _libVisibleSignature = cols.map((c) => c.key).join('|');
@@ -1405,23 +1415,28 @@ function renderLibraryTable(root) {
     renderLibraryTable(root);
   });
 
-  // Observe the actual library panel width. Re-render only when crossing a
+  // Observe the stable view content box. Re-render only when crossing a
   // column-priority threshold, so rail expansion never creates horizontal
-  // scrolling or clipped headings.
-  _libResizeObserver = new ResizeObserver((entries) => {
+  // scrolling, clipped headings, or an animation/re-render loop.
+  _libResizeObserver = new ResizeObserver(() => {
     if (currentRoute !== 'library') return;
-    const width = Math.floor(entries[0]?.contentRect?.width || 0);
+    const width = Math.floor(measureLibraryHostWidth(root));
     if (!width || Math.abs(width - _libMeasuredWidth) < 2) return;
     _libMeasuredWidth = width;
     const signature = visibleLibColumns().map((c) => c.key).join('|');
     if (signature !== _libVisibleSignature) {
-      const host = document.querySelector('#viewRoot') || root;
-      requestAnimationFrame(() => renderLibraryTable(host));
+      // Rebuild once only when a real column-priority threshold is crossed.
+      // Both the initial render and the observer now use the same host box, so
+      // expanding/collapsing the sidebar cannot trigger a render loop.
+      requestAnimationFrame(() => {
+        if (currentRoute === 'library' && root.isConnected) renderLibraryTable(root);
+      });
     } else {
       applyLibGridTemplate(root);
+      _libVlist?.refresh?.();
     }
   });
-  _libResizeObserver.observe(root.querySelector('.library-panel'));
+  _libResizeObserver.observe(root);
 
   const applyFilters = () => {
     if (_libDebounce) clearTimeout(_libDebounce);

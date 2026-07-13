@@ -772,3 +772,49 @@ html.sidebar-precollapsed .credit-link:hover::after {
   .book-form-compact .field select { min-height: 31px; padding-block: 4px; }
   .book-form-compact .form-actions { margin-top: 6px; padding-block: 7px; }
 }
+
+/* ========================================================================
+   رَفّ 2.6.2 — Stable register resize and exact collapsed-icon centering
+   ======================================================================== */
+
+/* In RTL grid layout, `grid-column: 1` starts from the right edge.  When the
+   rail has a single track this visually pushed SVGs toward that edge.  Span
+   the complete track explicitly so every icon is centered on the rail axis. */
+body.sidebar-collapsed .nav-item > svg,
+html.sidebar-precollapsed .nav-item > svg {
+  grid-column: 1 / -1 !important;
+  grid-row: 1 !important;
+  place-self: center !important;
+  margin: 0 !important;
+  transform: none !important;
+}
+
+/* The register glyph uses symmetrical geometry and must share the exact same
+   optical box as the rest of the navigation icons. */
+.nav-item[data-route="library"] > svg {
+  display: block;
+  width: 19px;
+  height: 19px;
+  margin: 0;
+  overflow: visible;
+  transform: none !important;
+  transform-origin: 50% 50%;
+}
+
+/* Avoid re-running the long child reveal if the responsive register changes
+   its column set once during the sidebar transition. */
+.view-scroll.view-enter > .library-panel {
+  animation-duration: 180ms;
+}
+
+
+/* Remove hidden label/count tracks from the collapsed RTL grid. Keeping them
+   at width zero still created implicit columns and shifted the visible SVG. */
+body.sidebar-collapsed .nav-item,
+html.sidebar-precollapsed .nav-item {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+body.sidebar-collapsed .nav-item > span,
+html.sidebar-precollapsed .nav-item > span {
+  display: none !important;
+}

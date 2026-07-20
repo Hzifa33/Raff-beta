@@ -71,7 +71,7 @@ function renderBookRow(book) {
 /**
  * Confirms, deletes, then offers a real undo. Deleting a catalogued book is
  * destructive and easy to do by mistake, so the record is kept in memory and
- * restored verbatim (same id and reference number) if the user undoes.
+ * restored with the same identity when possible; if that reference was reused in the meantime, the store assigns the next safe number.
  */
 async function deleteBookWithUndo(book) {
   const ok = await confirmModal({
@@ -2570,39 +2570,123 @@ function renderStats(root) {
    ========================================================= */
 /** Shows the result of a data integrity check in a modal. */
 function showIntegrityReport(report) {
-  const section = (title, items, render, tone) => `
-    <div class="integrity-section">
-      <div class="integrity-head ${items.length ? 'has-' + tone : 'ok'}">
-        ${icon(items.length ? 'alert' : 'check', 14)}
-        <span>${title}</span>
-        <span class="integrity-count">${items.length}</span>
-      </div>
-      ${items.length ? `<div class="integrity-items">${items.slice(0, 12).map(render).join('')}${items.length > 12 ? `<div class="integrity-more">و${items.length - 12} أخرى…</div>` : ''}</div>` : ''}
-    </div>`;
+  const list = (value) => Array.isArray(value) ? value : [];
+  const section = (title, items, render, tone = 'warn', { emptyLabel = 'لا توجد مشكلات', limit = 20, showWhenEmpty = false } = {}) => {
+    if (!items.length && !showWhenEmpty) return '';
+    return `
+      <div class="integrity-section">
+        <div class="integrity-head ${items.length ? 'has-' + tone : 'ok'}">
+          ${icon(items.length ? (tone === 'danger' ? 'alert' : 'info') : 'check', 14)}
+          <span>${title}</span>
+          <span class="integrity-count">${items.length}</span>
+        </div>
+        ${items.length
+          ? `<div class="integrity-items">${items.slice(0, limit).map(render).join('')}${items.length > limit ? `<div class="integrity-more">و${items.length - limit} أخرى…</div>` : ''}</div>`
+          : `<div class="integrity-empty">${emptyLabel}</div>`}
+      </div>`;
+  };
+
+  const duplicateRefs = list(report.duplicateRefs);
+  const refNormalization = list(report.referenceNormalization);
+  const duplicateIds = list(report.duplicateIds);
+  const missingIds = list(report.missingIds);
+  const missing = list(report.missing);
+  const inventoryIssues = list(report.inventoryIssues);
+  const loanIssues = list(report.loanIssues);
+  const invalidReferences = list(report.invalidReferences);
+  const overdue = list(report.overdue);
+  const possibleDuplicates = list(report.possibleDuplicates);
+  const repairableCount = Number(report.repairableCount) || 0;
+  const warningsOnly = report.healthy && (overdue.length || possibleDuplicates.length);
+
+  const summaryText = report.healthy
+    ? (warningsOnly
+      ? `بنية البيانات سليمة في ${report.totalBooks} كتاب، مع ${overdue.length + possibleDuplicates.length} تنبيه تشغيلي للمراجعة.`
+      : `البيانات سليمة — لا توجد مشكلات بنيوية في ${report.totalBooks} كتاب.`)
+    : `تم رصد ${report.structuralIssueCount || 0} مشكلة بنيوية في ${report.totalBooks} كتاب.`;
+
+  const duplicateRefHtml = (d) => {
+    const refs = list(d.references).length ? d.references : [d.ref];
+    const books = list(d.books);
+    return `
+      <div class="integrity-item integrity-item-stack">
+        <div class="integrity-item-main">
+          <strong class="integrity-ref" dir="ltr">${refs.map(escapeHtml).join(' / ')}</strong>
+          <span class="integrity-tag danger">${d.count} كتب</span>
+        </div>
+        <div class="integrity-detail-list">
+          ${books.map((b) => `<button class="integrity-detail-link" data-book="${escapeHtml(b.bookId || '')}"><span>${escapeHtml(b.title || '(بدون عنوان)')}</span><code dir="ltr">${escapeHtml(b.referenceNumber || '—')}</code></button>`).join('')}
+        </div>
+      </div>`;
+  };
 
   const html = `
     <div class="modal-header">
-      <h3 class="modal-title">${icon('check')} فحص سلامة البيانات</h3>
+      <div>
+        <h3 class="modal-title">${icon('check')} فحص سلامة البيانات</h3>
+        <p class="modal-subtitle">تتم مقارنة الرقم المرجعي كاملاً بعد تنظيف الفواصل والمسافات فقط؛ لذلك <span dir="ltr">raf-0001</span> و<span dir="ltr">raf-1001</span> رقمان مختلفان.</p>
+      </div>
       <button class="btn btn-ghost btn-icon" id="integClose" aria-label="إغلاق">${icon('x')}</button>
     </div>
     <div class="modal-body">
       <div class="integrity-summary ${report.healthy ? 'is-healthy' : 'has-issues'}">
-        ${report.healthy
-          ? `${icon('check', 20)} <span>البيانات سليمة — لا مشاكل في ${report.totalBooks} كتاب</span>`
-          : `${icon('alert', 20)} <span>تم رصد بعض النقاط في ${report.totalBooks} كتاب</span>`}
+        ${icon(report.healthy ? 'check' : 'alert', 20)}
+        <span>${summaryText}</span>
       </div>
-      ${section('إعارات متأخرة', report.overdue, (o) => `<button class="integrity-item" data-book="${o.bookId}"><span>${escapeHtml(o.borrower)} — ${escapeHtml(o.title)}</span><span class="integrity-tag danger">${o.days} يوم</span></button>`, 'danger')}
-      ${section('أرقام مرجعية مكررة', report.duplicateRefs, (d) => `<div class="integrity-item"><span>${escapeHtml(d.ref)}</span><span class="integrity-tag danger">${d.count} كتب</span></div>`, 'danger')}
-      ${section('بيانات ناقصة', report.missing, (m) => `<button class="integrity-item" data-book="${m.bookId}"><span>${escapeHtml(m.title)}</span><span class="integrity-tag warn">${m.gaps.join('، ')}</span></button>`, 'warn')}
-      ${section('عناوين مكررة محتملة', report.possibleDuplicates, (p) => `<div class="integrity-item"><span>${escapeHtml(p.title)} — ${escapeHtml(p.author || '؟')}</span><span class="integrity-tag warn">${p.count} نسخ</span></div>`, 'warn')}
+
+      ${section('أرقام مرجعية مكررة فعلياً', duplicateRefs, duplicateRefHtml, 'danger')}
+      ${section('تنسيق أرقام مرجعية يحتاج توحيداً', refNormalization, (r) => `
+        <button class="integrity-item integrity-item-stack" data-book="${escapeHtml(r.bookId || '')}">
+          <div class="integrity-item-main"><span>${escapeHtml(r.title)}</span><span class="integrity-tag warn">قابل للإصلاح</span></div>
+          <div class="integrity-ref-change"><code dir="ltr">${escapeHtml(r.before)}</code><span>←</span><code dir="ltr">${escapeHtml(r.after)}</code></div>
+        </button>`, 'warn')}
+      ${section('أرقام مرجعية غير صالحة', invalidReferences, (r) => `<button class="integrity-item" data-book="${escapeHtml(r.bookId || '')}"><span>${escapeHtml(r.title)} — <bdi>${escapeHtml(r.referenceNumber)}</bdi></span><span class="integrity-tag danger">${escapeHtml(r.reason)}</span></button>`, 'danger')}
+      ${section('معرّفات داخلية مكررة أو مفقودة', [...duplicateIds, ...missingIds], (r) => `<div class="integrity-item"><span>${escapeHtml(r.id ? `${r.id} — ${list(r.titles).join('، ')}` : `${r.title} — ${r.referenceNumber || '—'}`)}</span><span class="integrity-tag danger">قابل للإصلاح</span></div>`, 'danger')}
+      ${section('بيانات أساسية ناقصة', missing, (m) => `<button class="integrity-item" data-book="${escapeHtml(m.bookId || '')}"><span>${escapeHtml(m.title)} <bdi>${escapeHtml(m.referenceNumber || '')}</bdi></span><span class="integrity-tag warn">${m.gaps.map(escapeHtml).join('، ')}</span></button>`, 'warn')}
+      ${section('اتساق النسخ والأجزاء', inventoryIssues, (i) => `<button class="integrity-item" data-book="${escapeHtml(i.bookId || '')}"><span>${escapeHtml(i.title)} — ${escapeHtml(i.field)}</span><span class="integrity-tag ${i.repairable ? 'warn' : 'danger'}">${i.repairable ? 'قابل للإصلاح' : 'مراجعة يدوية'}</span></button>`, 'warn')}
+      ${section('اتساق سجل الإعارات', loanIssues, (i) => `<button class="integrity-item" data-book="${escapeHtml(i.bookId || '')}"><span>${escapeHtml(i.title)} — ${escapeHtml(i.issue)}</span><span class="integrity-tag ${i.repairable ? 'warn' : 'danger'}">${i.repairable ? 'قابل للإصلاح' : 'مراجعة يدوية'}</span></button>`, 'danger')}
+      ${section('إعارات متأخرة', overdue, (o) => `<button class="integrity-item" data-book="${escapeHtml(o.bookId || '')}"><span>${escapeHtml(o.borrower || 'غير معروف')} — ${escapeHtml(o.title)}</span><span class="integrity-tag danger">${o.days} يوم</span></button>`, 'warn')}
+      ${section('عناوين متشابهة للمراجعة فقط', possibleDuplicates, (p) => `<div class="integrity-item"><span>${escapeHtml(p.title)} — ${escapeHtml(p.author || '؟')}</span><span class="integrity-tag warn">${p.count} سجلات</span></div>`, 'warn')}
+    </div>
+    <div class="integrity-footer">
+      <div class="integrity-footer-note">${repairableCount ? `${repairableCount} إصلاحاً آمناً متاحاً. تُنشأ نسخة احتياطية قبل أي تعديل.` : 'لا توجد إصلاحات تلقائية مطلوبة.'}</div>
+      <div class="integrity-footer-actions">
+        ${repairableCount ? `<button class="btn btn-primary" id="integrityRepairBtn">${icon('refresh')} إصلاح آمن (${repairableCount})</button>` : ''}
+        <button class="btn btn-outline" id="integrityRecheckBtn">${icon('check')} إعادة الفحص</button>
+      </div>
     </div>`;
 
   openModal(html, {
     modalClass: 'modal-integrity',
     onMount: (overlay) => {
       overlay.querySelector('#integClose').addEventListener('click', closeModal);
-      overlay.querySelectorAll('.integrity-item[data-book]').forEach((el) => {
-        el.addEventListener('click', () => { closeModal(); showBookDetails(el.dataset.book); });
+      overlay.querySelectorAll('[data-book]').forEach((el) => {
+        const id = el.dataset.book;
+        if (!id) return;
+        el.addEventListener('click', () => { closeModal(); showBookDetails(id); });
+      });
+      overlay.querySelector('#integrityRecheckBtn').addEventListener('click', async () => {
+        const btn = overlay.querySelector('#integrityRecheckBtn');
+        btn.disabled = true;
+        const res = await window.raff.integrityCheck();
+        if (res.ok) showIntegrityReport(res.report);
+        else { btn.disabled = false; toast('تعذّر إجراء الفحص', 'error'); }
+      });
+      const repairBtn = overlay.querySelector('#integrityRepairBtn');
+      if (repairBtn) repairBtn.addEventListener('click', async () => {
+        const ok = await confirmModal({
+          title: 'تنفيذ الإصلاح الآمن؟',
+          message: 'سيُنشئ النظام نسخة احتياطية أولاً، ثم يوحّد تنسيق الأرقام المرجعية، ويمنح رقماً جديداً للسجلات المكررة أو الناقصة، ويصلح معرّفات السجلات والقيم الرقمية الواضحة. لن يحذف أي كتاب أو إعارة.',
+          confirmLabel: 'إنشاء نسخة وإصلاح',
+          danger: false,
+        });
+        if (!ok) { showIntegrityReport(report); return; }
+        const res = await window.raff.repairIntegrity();
+        if (!res.ok) { toast('تعذّر إصلاح البيانات: ' + (res.error || ''), 'error'); return; }
+        await refreshState();
+        renderNavCounts();
+        toast(`تم تنفيذ ${res.result.changed} تعديل مع حفظ نسخة احتياطية`, 'success', 4200);
+        showIntegrityReport(res.result.after);
       });
     },
   });
@@ -2719,7 +2803,7 @@ function renderSettings(root) {
       <button class="btn btn-outline btn-sm" id="backupBtn">${icon('copies')} إنشاء نسخة</button>
     </div>
     <div class="setting-action">
-      <div><div class="setting-action-title">فحص سلامة البيانات</div><div class="setting-action-desc">كشف المتأخرات والنواقص والتكرار المحتمل</div></div>
+      <div><div class="setting-action-title">فحص سلامة البيانات</div><div class="setting-action-desc">فحص شامل للأرقام المرجعية والنسخ والإعارات مع إصلاح آمن ونسخة احتياطية</div></div>
       <button class="btn btn-outline btn-sm" id="integrityBtn">${icon('check')} فحص الآن</button>
     </div>
     <div class="setting-action">

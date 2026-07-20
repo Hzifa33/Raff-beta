@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self';" />
-<title>رَفّ — نظام فهرسة المكتبات</title>
+<title>رَفّ 4 — نظام المكتبات المحلي المتكامل</title>
 <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg" />
 <script src="js/theme-init.js"></script>
 <link rel="stylesheet" href="css/fonts.css" />
@@ -13,6 +13,7 @@
 <link rel="stylesheet" href="css/minimalist.css" />
 <link rel="stylesheet" href="css/shadcn-raff.css" />
 <link rel="stylesheet" href="css/polish.css" />
+<link rel="stylesheet" href="css/v4.css" />
 </head>
 <body>
 
@@ -64,42 +65,130 @@
 
     <div class="sidebar-rule" aria-hidden="true"><span></span></div>
 
-    <nav class="nav" id="mainNav">
-      <button class="nav-item" data-route="dashboard" title="لوحة المعلومات" aria-label="لوحة المعلومات">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
-        <span>لوحة المعلومات</span>
-      </button>
-      <button class="nav-item" data-route="search" title="البحث المتقدم" aria-label="البحث المتقدم">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <span>البحث المتقدم</span>
-      </button>
-      <button class="nav-item" data-route="add" title="إضافة كتاب" aria-label="إضافة كتاب">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="9.5" y1="10.5" x2="14.5" y2="10.5"/></svg>
-        <span>إضافة كتاب</span>
-      </button>
-      <button class="nav-item" data-route="library" title="السجل الكامل" aria-label="السجل الكامل">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.25" y="4.25" width="17.5" height="15.5" rx="2.25"/><path d="M3.75 9.25h16.5M8.25 9.25v10M15.75 9.25v10"/></svg>
-        <span>السجل الكامل</span>
-        <span class="count" id="navLibraryCount">0</span>
-      </button>
+    <div class="workspace-switcher" id="workspaceSwitcher">
+      <label for="workspaceSelect">مساحة العمل</label>
+      <div class="workspace-select-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        <select id="workspaceSelect" aria-label="اختيار مساحة العمل">
+          <option value="researcher">الباحث والاستكشاف</option>
+          <option value="circulation">الإعارة وخدمة القراء</option>
+          <option value="cataloging">الفهرسة والمجموعات</option>
+          <option value="management">الإدارة والتقارير</option>
+          <option value="all">كل الأدوات</option>
+        </select>
+      </div>
+    </div>
 
-      <div class="nav-group-label">إدارة</div>
-      <button class="nav-item" data-route="scan" title="المسح الضوئي" aria-label="المسح الضوئي">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
-        <span>المسح الضوئي</span>
-      </button>
-      <button class="nav-item" data-route="reports" title="الاستدعاء" aria-label="الاستدعاء">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 21H4a1 1 0 0 1-1-1V3"/><path d="M7 15l3.5-4.5 3 2.5L20 6"/><circle cx="20" cy="6" r="1.4" fill="currentColor" stroke="none"/></svg>
-        <span>الاستدعاء</span>
-      </button>
-      <button class="nav-item" data-route="stats" title="الإحصائيات" aria-label="الإحصائيات">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-        <span>الإحصائيات</span>
-      </button>
-      <button class="nav-item" data-route="settings" title="الإعدادات والنسخ" aria-label="الإعدادات والنسخ">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        <span>الإعدادات والنسخ</span>
-      </button>
+    <nav class="nav nav-v4" id="mainNav">
+      <div class="nav-section" data-workspaces="researcher circulation cataloging management all">
+        <div class="nav-group-label">الرئيسية</div>
+        <button class="nav-item" data-route="dashboard" title="لوحة المعلومات" aria-label="لوحة المعلومات">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+          <span>لوحة المعلومات</span>
+        </button>
+        <button class="nav-item" data-route="opac" title="فهرس الباحث" aria-label="فهرس الباحث">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/><path d="M8 8h6M8 11h4"/></svg>
+          <span>فهرس الباحث</span>
+        </button>
+        <button class="nav-item" data-route="reading-lists" title="قوائم القراءة" aria-label="قوائم القراءة">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>
+          <span>قوائم القراءة</span>
+        </button>
+        <button class="nav-item" data-route="notifications" title="التنبيهات" aria-label="التنبيهات">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
+          <span>التنبيهات</span>
+          <span class="count" id="navNotificationCount" hidden>0</span>
+        </button>
+      </div>
+
+      <div class="nav-section" data-workspaces="circulation all">
+        <div class="nav-group-label">خدمة القراء</div>
+        <button class="nav-item" data-route="circulation" title="مكتب الإعارة" aria-label="مكتب الإعارة">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="m10 9 2 2 4-4"/></svg>
+          <span>مكتب الإعارة</span>
+        </button>
+        <button class="nav-item" data-route="patrons" title="المستعيرون" aria-label="المستعيرون">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>المستعيرون</span>
+        </button>
+        <button class="nav-item" data-route="holds" title="الحجوزات" aria-label="الحجوزات">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M8 12h8M12 8v8"/></svg>
+          <span>الحجوزات</span>
+        </button>
+        <button class="nav-item" data-route="inventory" title="الجرد الميداني" aria-label="الجرد الميداني">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M8 12h8M12 8v8"/></svg>
+          <span>الجرد الميداني</span>
+        </button>
+        <button class="nav-item" data-route="scan" title="المسح والباركود" aria-label="المسح والباركود">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+          <span>المسح والباركود</span>
+        </button>
+      </div>
+
+      <div class="nav-section" data-workspaces="cataloging all">
+        <div class="nav-group-label">الفهرسة والمجموعات</div>
+        <button class="nav-item" data-route="catalog" title="السجلات والمقتنيات" aria-label="السجلات والمقتنيات">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M9 7h7M9 11h5"/></svg>
+          <span>السجلات والمقتنيات</span>
+          <span class="count" id="navLibraryCount">0</span>
+        </button>
+        <button class="nav-item" data-route="authorities" title="الضبط الاستنادي" aria-label="الضبط الاستنادي">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/><path d="m17 6 2 2 3-3"/></svg>
+          <span>الضبط الاستنادي</span>
+        </button>
+        <button class="nav-item" data-route="exchange" title="الاستيراد والتبادل" aria-label="الاستيراد والتبادل">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h11l-3-3M17 17H6l3 3"/><path d="M18 7v4M6 17v-4"/></svg>
+          <span>الاستيراد والتبادل</span>
+        </button>
+      </div>
+
+      <div class="nav-section" data-workspaces="cataloging management all">
+        <div class="nav-group-label">التزويد والنشر</div>
+        <button class="nav-item" data-route="acquisitions" title="التزويد والمشتريات" aria-label="التزويد والمشتريات">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1"/><circle cx="19" cy="20" r="1"/><path d="M3 4h2l2.5 11h11l2-7H7"/></svg>
+          <span>التزويد والمشتريات</span>
+        </button>
+        <button class="nav-item" data-route="serials" title="الدوريات" aria-label="الدوريات">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+          <span>الدوريات</span>
+        </button>
+        <button class="nav-item" data-route="publisher" title="وضع دار النشر" aria-label="وضع دار النشر">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6M8 9h.01M12 9h.01M16 9h.01"/></svg>
+          <span>وضع دار النشر</span>
+        </button>
+      </div>
+
+      <div class="nav-section" data-workspaces="management all">
+        <div class="nav-group-label">الإدارة</div>
+        <button class="nav-item" data-route="branches" title="الفروع والمواقع" aria-label="الفروع والمواقع">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V5h14v16M9 9h2M13 9h2M9 13h2M13 13h2"/></svg>
+          <span>الفروع والمواقع</span>
+        </button>
+        <button class="nav-item" data-route="policies" title="سياسات الإعارة" aria-label="سياسات الإعارة">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h6"/></svg>
+          <span>سياسات الإعارة</span>
+        </button>
+        <button class="nav-item" data-route="users" title="المستخدمون والصلاحيات" aria-label="المستخدمون والصلاحيات">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><path d="m18 8 2 2 3-3"/></svg>
+          <span>المستخدمون والصلاحيات</span>
+        </button>
+        <button class="nav-item" data-route="reports" title="التقارير" aria-label="التقارير">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 21H4a1 1 0 0 1-1-1V3"/><path d="M7 15l3.5-4.5 3 2.5L20 6"/></svg>
+          <span>التقارير</span>
+        </button>
+        <button class="nav-item" data-route="audit" title="سجل التدقيق" aria-label="سجل التدقيق">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          <span>سجل التدقيق</span>
+        </button>
+        <button class="nav-item" data-route="trash" title="سلة المحذوفات" aria-label="سلة المحذوفات">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 15H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+          <span>سلة المحذوفات</span>
+        </button>
+        <button class="nav-item" data-route="settings" title="الإعدادات والنسخ" aria-label="الإعدادات والنسخ">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span>الإعدادات والنسخ</span>
+        </button>
+      </div>
     </nav>
 
     <div class="sidebar-footer">
@@ -126,6 +215,13 @@
         <input type="text" id="quickSearchInput" placeholder="ابحث عن عنوان، مؤلف، دار نشر، رقم مرجعي..." />
         <kbd class="search-kbd">Ctrl K</kbd>
       </label>
+      <button class="topbar-icon-btn command-trigger" id="commandPaletteBtn" title="لوحة الأوامر" aria-label="فتح لوحة الأوامر">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l6-6-6-6M12 19h8"/></svg>
+      </button>
+      <button class="active-user-chip" id="activeUserBtn" type="button" aria-label="المستخدم النشط">
+        <span class="active-user-avatar" id="activeUserAvatar">م</span>
+        <span class="active-user-copy"><small>المستخدم</small><b id="activeUserName">مدير النظام</b></span>
+      </button>
       <button class="topbar-icon-btn" id="topbarThemeToggle" title="تبديل الوضع النهاري والليلي" aria-label="تبديل الوضع النهاري والليلي">
         <svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg>
         <svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
@@ -159,6 +255,8 @@
 <script src="js/store-bridge.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/views.js"></script>
+<script src="js/v4-ui.js"></script>
+<script src="js/v4-ui-extras.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

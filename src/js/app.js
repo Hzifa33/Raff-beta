@@ -1,18 +1,36 @@
 'use strict';
 
 const ROUTES = {
-  dashboard: { title: 'لوحة المعلومات', subtitle: 'نظرة عامة على مكتبتك', render: (root) => renderDashboard(root) },
-  search: { title: 'البحث المتقدم', subtitle: 'بحث استكشافي حي ببطاقات — للعثور السريع على كتاب', render: (root, ctx) => renderBookBrowser(root, ctx) },
-  add: { title: 'إضافة كتاب جديد', subtitle: 'سجّل بيانات كتاب جديد في المكتبة', render: (root) => renderAddForm(root, null) },
-  library: { title: 'السجل الكامل', subtitle: 'عرض منظم قابل للفرز، بما في ذلك وقت الإضافة', render: (root) => {
+  dashboard: { title: 'لوحة المعلومات', subtitle: 'نظرة عملية هادئة على المجموعة والخدمة اليومية', render: (root) => renderV4Dashboard(root) },
+  opac: { title: 'فهرس الباحث', subtitle: 'ابحث عن الكتاب ومكانه وإتاحته دون أدوات إدارية معقدة', render: (root) => renderV4Opac(root) },
+  'reading-lists': { title: 'قوائم القراءة', subtitle: 'قوائم محلية للباحثين والبرامج الثقافية', render: (root) => renderV4ReadingLists(root) },
+  notifications: { title: 'التنبيهات', subtitle: 'المواعيد والحجوزات والتزويد والنقل في مركز واحد', render: (root) => renderV4Notifications(root) },
+  circulation: { title: 'مكتب الإعارة', subtitle: 'إعارة وإرجاع وتجديد سريع قائم على النسخ المادية', render: (root) => renderV4Circulation(root) },
+  patrons: { title: 'المستعيرون', subtitle: 'العضويات وسجل الاستخدام والقيود المحلية', render: (root) => renderV4Patrons(root) },
+  holds: { title: 'الحجوزات', subtitle: 'قوائم الانتظار وتجهيز النسخ للاستلام', render: (root) => renderV4Holds(root) },
+  inventory: { title: 'الجرد الميداني', subtitle: 'جلسات مسح بالباركود ومقارنة الموجود بالسجل', render: (root) => renderV4Inventory(root) },
+  catalog: { title: 'السجلات والمقتنيات', subtitle: 'سجل ببليوغرافي ثم مقتنى ثم نسخة مادية مستقلة', render: (root) => renderV4Catalog(root) },
+  authorities: { title: 'الضبط الاستنادي', subtitle: 'توحيد المؤلفين والموضوعات والسلاسل ومنع التكرار', render: (root) => renderV4Authorities(root) },
+  exchange: { title: 'الاستيراد والتبادل', subtitle: 'MARCXML وBibTeX وRIS وحزم نقل محلية', render: (root) => renderV4Exchange(root) },
+  acquisitions: { title: 'التزويد والمشتريات', subtitle: 'طلبات الشراء والموردون والاستلام والميزانيات', render: (root) => renderV4Acquisitions(root) },
+  serials: { title: 'الدوريات', subtitle: 'الاشتراكات والأعداد المتوقعة والمتأخرة', render: (root) => renderV4Serials(root) },
+  publisher: { title: 'وضع دار النشر', subtitle: 'الإصدارات والطبعات والمخزون والتوزيع محليًا', render: (root) => renderV4Publisher(root) },
+  branches: { title: 'الفروع والمواقع', subtitle: 'هيكل المكتبة والقاعات والخزائن والرفوف', render: (root) => renderV4Branches(root) },
+  policies: { title: 'سياسات الإعارة', subtitle: 'قواعد حسب نوع المستعير والمادة والفرع', render: (root) => renderV4Policies(root) },
+  users: { title: 'المستخدمون والصلاحيات', subtitle: 'حسابات محلية وأدوار واضحة وسجل عمليات', render: (root) => renderV4Users(root) },
+  audit: { title: 'سجل التدقيق', subtitle: 'تاريخ محلي لكل عملية حساسة', render: (root) => renderV4Audit(root) },
+  trash: { title: 'سلة المحذوفات', subtitle: 'استعادة آمنة قبل الحذف النهائي', render: (root) => renderV4Trash(root) },
+  search: { title: 'البحث المتقدم التقليدي', subtitle: 'بحث حي داخل بيانات الإصدار السابق', render: (root, ctx) => renderBookBrowser(root, ctx) },
+  add: { title: 'إضافة سريعة', subtitle: 'إضافة كتاب بالحقول الأساسية ثم إكماله من السجل المتقدم', render: (root) => renderAddForm(root, null) },
+  library: { title: 'السجل التقليدي', subtitle: 'عرض توافق للإصدارات السابقة', render: (root) => {
     const quick = document.getElementById('quickSearchInput');
     if (quick) quick.value = '';
     renderLibraryTable(root);
   } },
-  stats: { title: 'الإحصائيات', subtitle: 'أرقام وتحليلات حول مكتبتك', render: (root) => renderStats(root) },
-  reports: { title: 'الاستدعاء', subtitle: 'استدعِ مستعيراً أو دار نشر أو مؤلفاً واحصل على تحليل كامل بالأرقام', render: (root) => renderReports(root) },
-  scan: { title: 'المسح الضوئي والباركود', subtitle: 'امسح باركود كتاب لعرض بياناته فوراً، أو اطبع ملصقات الباركود', render: (root) => renderScanView(root) },
-  settings: { title: 'الإعدادات والنسخ', subtitle: 'الهوية والملصقات ومدة الإعارة والنسخ الاحتياطي', render: (root) => renderSettings(root) },
+  stats: { title: 'الإحصائيات التقليدية', subtitle: 'أرقام وتحليلات حول المكتبة', render: (root) => renderStats(root) },
+  reports: { title: 'التقارير ولوحة القرار', subtitle: 'تحليلات المجموعة والإعارة والجودة وتقارير قابلة للتصدير', render: (root) => renderV4Reports(root) },
+  scan: { title: 'المسح والباركود', subtitle: 'استدعاء النسخ وملصقات الباركود', render: (root) => renderScanView(root) },
+  settings: { title: 'الإعدادات والنسخ', subtitle: 'الواجهة والوحدات والخصوصية والنسخ الاحتياطية', render: (root) => renderRaff4Settings(root) },
   edit: { title: 'تعديل بيانات الكتاب', subtitle: '', render: (root, ctx) => renderAddForm(root, ctx.book) },
 };
 
@@ -173,6 +191,11 @@ function initAppearanceControls() {
 
 function navigateTo(route, ctx = {}) {
   hideSidebarTooltip();
+  if (typeof v4RouteAllowed === 'function' && RAFF4_STATE?.data && !v4RouteAllowed(route)) {
+    toast('هذه الصفحة غير متاحة لدور المستخدم الحالي', 'error');
+    route = v4RouteAllowed('dashboard') ? 'dashboard' : 'opac';
+    ctx = {};
+  }
   currentRoute = route;
   currentCtx = ctx;
   renderRoute();
@@ -201,7 +224,12 @@ function renderRoute() {
 }
 
 function renderNavCounts() {
-  document.getElementById('navLibraryCount').textContent = RAFF_STATE.books.length;
+  const el = document.getElementById('navLibraryCount');
+  const advancedCount = RAFF4_STATE?.data?.records?.filter((r) => !r.deletedAt).length;
+  if (el) el.textContent = Number.isFinite(advancedCount) ? advancedCount : RAFF_STATE.books.length;
+  const note = document.getElementById('navNotificationCount');
+  const unread = RAFF4_STATE?.data?.notifications?.filter((n) => !n.read).length || 0;
+  if (note) { note.textContent = unread; note.hidden = unread === 0; }
 }
 
 /* ---- Global click delegation: nav buttons, book row edit/delete, empty-state CTAs ---- */
@@ -279,31 +307,27 @@ document.addEventListener('keydown', (e) => {
    this input. Once we're already on a browsing route we only refresh results. */
 document.getElementById('quickSearchInput').addEventListener('input', (e) => {
   const value = e.target.value;
-  _browserFilters.query = value;
-
-  if (currentRoute === 'search') {
-    syncFilterInputValue(value);
-    scheduleBookResults();
+  if (currentRoute === 'opac') {
+    RAFF4_STATE.opacQuery = value;
+    const opacInput = document.getElementById('opacSearchInput');
+    if (opacInput && opacInput.value !== value) {
+      opacInput.value = value;
+      opacInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
   } else {
-    _browserFilters.field = 'all';
-    navigateTo('search', { presetQuery: value });
+    RAFF4_STATE.opacQuery = value;
+    navigateTo('opac');
   }
 });
 
-document.getElementById('quickAddBtn').addEventListener('click', () => navigateTo('add'));
+document.getElementById('quickAddBtn').addEventListener('click', () => { if (typeof openV4RecordForm === 'function') openV4RecordForm(); else navigateTo('add'); });
 
 /* ---- Predictive suggestions for the topbar search ---- */
 createAutocomplete(document.getElementById('quickSearchInput'), {
   getPool: () => RAFF_STATE.suggestions,
   onSelect: (label) => {
-    _browserFilters.query = label;
-    _browserFilters.field = 'all';
-    if (currentRoute === 'search') {
-      syncFilterInputValue(label);
-      updateBookResults({ resetScroll: true });
-    } else {
-      navigateTo('search', { presetQuery: label });
-    }
+    RAFF4_STATE.opacQuery = label;
+    navigateTo('opac');
   },
   typeLabels: SUGGESTION_TYPE_LABELS,
 });
@@ -336,7 +360,7 @@ document.addEventListener('keydown', (e) => {
   }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n') {
     e.preventDefault();
-    navigateTo('add');
+    if (RAFF4_STATE?.data) openV4RecordForm(); else navigateTo('add');
     return;
   }
   // Ctrl+S saves whichever book form is open.
@@ -383,13 +407,29 @@ document.addEventListener('keydown', (e) => {
 
 /* ---- Init ---- */
 /**
- * Finds a book by exact reference number (case-insensitive, trimmed). Returns
- * the book or null. Used by the barcode scanner and manual lookup.
+ * Full-reference identity used by scanner/manual lookup. It cleans harmless
+ * formatting differences but never compares a suffix, so raf-0001 and
+ * raf-1001 remain different books.
  */
+function referenceLookupIdentity(value) {
+  const cleaned = (value ?? '').toString()
+    .normalize('NFKC')
+    .replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/g, '')
+    .replace(/[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/g, '-')
+    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06F0))
+    .trim()
+    .replace(/\s*-\s*/g, '-')
+    .replace(/\s+/g, ' ');
+  const canonical = /^raf-(\d+)$/i.exec(cleaned);
+  if (canonical) return 'raff:' + canonical[1].replace(/^0+(?=\d)/, '');
+  return cleaned ? 'custom:' + cleaned.toLocaleLowerCase('en-US') : '';
+}
+
 function findBookByReference(ref) {
-  if (!ref) return null;
-  const needle = ref.trim().toLowerCase();
-  return RAFF_STATE.books.find((b) => (b.referenceNumber || '').trim().toLowerCase() === needle) || null;
+  const needle = referenceLookupIdentity(ref);
+  if (!needle) return null;
+  return RAFF_STATE.books.find((b) => referenceLookupIdentity(b.referenceNumber) === needle) || null;
 }
 
 /**
@@ -416,13 +456,27 @@ let _lastScannedId = null;
 (async function init() {
   initAppearanceControls();
   await refreshState();
+  if (typeof refreshRaff4State === 'function') await refreshRaff4State();
+  if (typeof initV4Shell === 'function') initV4Shell();
+  if (typeof initV4Extras === 'function') initV4Extras();
   renderNavCounts();
   renderRoute();
 
-  // Global barcode-scanner listener: works no matter which view is open.
+  // Global barcode-scanner listener: the advanced circulation and inventory
+  // views consume their focused scan fields first; other scans fall back to
+  // the compatible 2.x lookup screen.
   if (typeof RaffScanner !== 'undefined') {
     RaffScanner.createScanner({
-      onScan: (code) => handleScannedCode(code),
+      onScan: (code) => {
+        const activeInventory = currentRoute === 'inventory' && RAFF4_STATE.activeInventoryId;
+        if (activeInventory) {
+          window.raff4.scanInventory(activeInventory, code).then(async () => { await refreshRaff4State(); renderRoute(); toast('تم تسجيل النسخة في الجرد', 'success'); }).catch((err) => toast(err.message, 'error'));
+          return;
+        }
+        const circInput = currentRoute === 'circulation' ? document.getElementById('circItemSearch') : null;
+        if (circInput) { circInput.value = code; circInput.dispatchEvent(new Event('input', { bubbles: true })); return; }
+        handleScannedCode(code);
+      },
     });
   }
 })();

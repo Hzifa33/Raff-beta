@@ -1,7 +1,7 @@
 {
   "name": "raff-library",
-  "version": "2.6.2",
-  "description": "رَفّ — نظام عربي احترافي لإدارة وفهرسة المكتبات بثيم shadcn/ui وهوية بنية وذهبية، مع سجل كامل ثابت عند فتح وطي الشريط الجانبي ومحاذاة دقيقة للأيقونات",
+  "version": "4.0.0",
+  "description": "رَفّ 4 — نظام مكتبات عربي محلي متكامل: فهرسة ومقتنيات ونسخ مادية ومستعيرون وإعارة وحجوزات وجرد وMARC وتقارير وفروع وOPAC محلي بلا إنترنت",
   "main": "main.js",
   "author": "Hzifa33",
   "license": "MIT",
@@ -9,11 +9,13 @@
     "start": "electron .",
     "dist": "electron-builder",
     "dist:win": "electron-builder --win --publish never",
-    "dist:linux": "electron-builder --linux"
+    "test": "node tests/integrity.test.js && node tests/v4.test.js && node tests/ui-contract.test.js",
+    "test:v4": "node tests/v4.test.js",
+    "check": "node --check main.js && node --check preload.js && node --check src/js/raff-v4-store.js && node --check src/js/local-opac-server.js && node --check src/js/v4-ui.js && node --check src/js/v4-ui-extras.js && node --check src/js/app.js"
   },
   "devDependencies": {
-    "electron": "^31.0.0",
-    "electron-builder": "^24.13.3"
+    "electron": "^43.1.1",
+    "electron-builder": "^26.15.3"
   },
   "build": {
     "appId": "com.hzifa33.raff",
@@ -45,13 +47,6 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "رَفّ"
-    },
-    "linux": {
-      "target": [
-        "AppImage"
-      ],
-      "icon": "assets/icon.png",
-      "category": "Office"
     }
   }
 }

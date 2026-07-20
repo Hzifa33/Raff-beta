@@ -1,27 +1,11 @@
 # إشعارات الطرف الثالث
 
-## shadcn/ui
+رَفّ 4.0.0 مبني باستخدام الأدوات التالية لأغراض التشغيل والبناء:
 
-استُلهم نظام الثيم الدلالي في الإصدار 2.2.0 من مشروع shadcn/ui، المرخّص برخصة MIT.
+- Electron 43 — MIT License
+- electron-builder 26 — MIT License
+- Node.js ومكتباته التابعة وفق تراخيصها المنشورة داخل `node_modules`
 
-MIT License
+لا يعتمد التطبيق على خطوط ويب أو مكتبات واجهة أو خدمات تحليلات خارجية أثناء التشغيل. الأيقونات SVG والخطوط والموارد البصرية تُحزم محليًا.
 
-Copyright (c) 2023 shadcn
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+توجد تفاصيل التراخيص الكاملة داخل حزم npm عند تنفيذ `npm ci`.

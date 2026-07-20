@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="css/shadcn-raff.css" />
 <link rel="stylesheet" href="css/polish.css" />
 <link rel="stylesheet" href="css/v4.css" />
+<link rel="stylesheet" href="css/layout-fixes.css" />
 </head>
 <body>
 
@@ -22,15 +23,15 @@
 <!-- ===================== Custom title bar ===================== -->
 <header class="titlebar" id="titlebar">
   <div class="titlebar-controls">
-    <button class="win-btn" id="winMinimize" title="تصغير" aria-label="تصغير">
-      <svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true"><rect x="1.5" y="5.5" width="9" height="1.1" fill="currentColor"/></svg>
+    <button class="win-btn win-btn-close" id="winClose" title="إغلاق" aria-label="إغلاق">
+      <svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true"><path d="M1.8 1.8l8.4 8.4M10.2 1.8l-8.4 8.4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
     </button>
     <button class="win-btn" id="winMaximize" title="تكبير" aria-label="تكبير">
       <svg class="ico-maximize" viewBox="0 0 12 12" width="11" height="11" aria-hidden="true"><rect x="1.6" y="1.6" width="8.8" height="8.8" fill="none" stroke="currentColor" stroke-width="1.1"/></svg>
       <svg class="ico-restore" viewBox="0 0 12 12" width="11" height="11" aria-hidden="true"><rect x="1.4" y="3.4" width="7.2" height="7.2" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M3.8 3.2V1.4h7.0v7.0H9.0" fill="none" stroke="currentColor" stroke-width="1.1"/></svg>
     </button>
-    <button class="win-btn win-btn-close" id="winClose" title="إغلاق" aria-label="إغلاق">
-      <svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true"><path d="M1.8 1.8l8.4 8.4M10.2 1.8l-8.4 8.4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+    <button class="win-btn" id="winMinimize" title="تصغير" aria-label="تصغير">
+      <svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true"><rect x="1.5" y="5.5" width="9" height="1.1" fill="currentColor"/></svg>
     </button>
   </div>
 
@@ -254,6 +255,7 @@
 <script src="js/virtual-list.js"></script>
 <script src="js/store-bridge.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/custom-select.js"></script>
 <script src="js/views.js"></script>
 <script src="js/v4-ui.js"></script>
 <script src="js/v4-ui-extras.js"></script>

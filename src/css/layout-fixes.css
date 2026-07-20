@@ -1,0 +1,443 @@
+/* ======================================================================
+   رَفّ 4.0 — layout resilience + custom select system
+   Loaded last on purpose: this layer protects every route from vertical
+   flex compression and gives all select controls one local visual language.
+   ====================================================================== */
+
+/* ----------------------------------------------------------------------
+   1) Prevent page sections/cards from being compressed inside view-scroll
+   ---------------------------------------------------------------------- */
+.view-scroll {
+  align-items: stretch;
+  overscroll-behavior: contain;
+}
+
+/* Normal pages must grow to their content and let .view-scroll own scrolling.
+   Data-browser routes are excluded because they intentionally own an inner
+   scrolling region and already declare their own flex behavior. */
+.view-scroll > :not(.browser-panel):not(.reports-panel):not(.library-panel) {
+  flex: 0 0 auto;
+  min-block-size: max-content;
+}
+
+.v4-page {
+  flex: 0 0 auto;
+  height: auto;
+  min-height: max-content;
+  align-self: stretch;
+}
+
+.v4-page > *,
+.v4-grid > *,
+.dash-grid > *,
+.stat-grid > *,
+.smart-grid > * {
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+/* Cards and dashboard sections may clip decoration horizontally, but their
+   content must always participate in intrinsic height calculation. */
+.v4-welcome,
+.v4-card,
+.v4-card.pad,
+.v4-metric,
+.v4-table-wrap,
+.panel,
+.settings-card,
+.integrity-card,
+.report-card,
+.chart-card,
+.stats-card,
+.form-panel,
+.availability-card,
+.circ-panel,
+.opac-card,
+.exchange-card {
+  min-block-size: max-content;
+}
+
+.v4-welcome {
+  flex-shrink: 0;
+}
+
+.v4-card.pad {
+  overflow: hidden;
+}
+
+.v4-workflow,
+.v4-card-head,
+.v4-card-body,
+.v4-card-footer,
+.v4-split-label,
+.audit-list,
+.notification-center {
+  flex-shrink: 0;
+}
+
+/* Tables should never force a parent card to become shorter than its header. */
+.v4-table-wrap,
+.table-wrap,
+.register-table-wrap {
+  min-height: 0;
+  max-height: none;
+}
+
+/* Keep route reveal animation visual-only; it must not alter intrinsic size. */
+.view-scroll.view-enter > * {
+  will-change: opacity, transform;
+}
+
+/* Short Windows displays and 125–150% scaling still scroll normally instead
+   of squeezing banners and workflow cards to a single visible line. */
+@media (max-height: 920px) {
+  .v4-page { gap: clamp(14px, 2.2vh, var(--v4-gap-5)); }
+  .v4-welcome { padding-block: 18px; }
+  .v4-card.pad { padding-block: 14px; }
+}
+
+/* ----------------------------------------------------------------------
+   2) Window controls — close button at the far right in the RTL title bar
+   ---------------------------------------------------------------------- */
+.titlebar-controls {
+  direction: rtl;
+  flex: 0 0 auto;
+}
+
+.win-btn-close {
+  order: 0;
+}
+
+#winMaximize { order: 1; }
+#winMinimize { order: 2; }
+
+.win-btn-close {
+  position: relative;
+}
+
+.win-btn-close::after {
+  content: '';
+  position: absolute;
+  inset-inline-end: 0;
+  inset-block: 8px;
+  width: 1px;
+  background: rgba(255,255,255,.05);
+  pointer-events: none;
+}
+
+/* ----------------------------------------------------------------------
+   3) Local custom select component (no native browser popup)
+   ---------------------------------------------------------------------- */
+.raff-select {
+  --raff-select-height: var(--v4-control-h, 38px);
+  position: relative;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  color: var(--foreground);
+  font-family: var(--font-body);
+}
+
+/* The real select remains in the form and keeps FormData/validation working. */
+select.raff-native-select {
+  position: absolute !important;
+  inline-size: 1px !important;
+  block-size: 1px !important;
+  min-inline-size: 1px !important;
+  min-block-size: 1px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  opacity: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  clip-path: inset(50%) !important;
+  pointer-events: none !important;
+  white-space: nowrap !important;
+}
+
+.raff-select-trigger {
+  width: 100%;
+  min-width: 0;
+  height: var(--raff-select-height);
+  min-height: var(--raff-select-height);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 11px;
+  border: 1px solid var(--input, var(--border));
+  border-radius: 9px;
+  background: var(--background);
+  color: var(--foreground);
+  box-shadow: 0 1px 0 rgba(255,255,255,.03) inset;
+  font: 600 11.5px/1.35 var(--font-body);
+  text-align: start;
+  cursor: pointer;
+  outline: none;
+  transition: border-color .16s ease, box-shadow .16s ease,
+              background .16s ease, color .16s ease;
+}
+
+.raff-select-trigger:hover {
+  border-color: var(--line-strong, var(--primary));
+  background: color-mix(in srgb, var(--background) 82%, var(--accent));
+}
+
+.raff-select-trigger:focus-visible,
+.raff-select.is-open .raff-select-trigger {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+.raff-select-trigger[aria-disabled='true'] {
+  opacity: .52;
+  cursor: not-allowed;
+}
+
+.raff-select-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.raff-select-chevron {
+  width: 17px;
+  height: 17px;
+  display: grid;
+  place-items: center;
+  color: var(--muted-foreground);
+  transition: transform .18s ease, color .18s ease;
+}
+
+.raff-select-chevron svg {
+  width: 14px;
+  height: 14px;
+}
+
+.raff-select.is-open .raff-select-chevron {
+  color: var(--primary);
+  transform: rotate(180deg);
+}
+
+.raff-select-popover {
+  position: fixed;
+  z-index: 10000;
+  min-width: 180px;
+  padding: 6px;
+  border: 1px solid var(--popover-border, var(--border));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--popover, var(--card)) 96%, transparent);
+  color: var(--popover-foreground, var(--foreground));
+  box-shadow: 0 18px 45px rgba(35,24,16,.20),
+              0 3px 10px rgba(35,24,16,.10),
+              0 1px 0 rgba(255,255,255,.08) inset;
+  backdrop-filter: blur(18px) saturate(125%);
+  overflow: hidden;
+  transform-origin: top center;
+  animation: raffSelectIn .14s ease-out both;
+}
+
+.raff-select-popover[data-placement='top'] {
+  transform-origin: bottom center;
+}
+
+@keyframes raffSelectIn {
+  from { opacity: 0; transform: translateY(-4px) scale(.985); }
+  to { opacity: 1; transform: none; }
+}
+
+.raff-select-search {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 5px;
+  padding: 0 9px;
+  height: 36px;
+  border: 1px solid var(--input, var(--border));
+  border-radius: 9px;
+  background: var(--background);
+}
+
+.raff-select-search svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  color: var(--muted-foreground);
+}
+
+.raff-select-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  color: var(--foreground);
+  font: 500 11px/1.4 var(--font-body);
+  padding: 0 !important;
+}
+
+.raff-select-options {
+  display: grid;
+  gap: 2px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.raff-select-option {
+  width: 100%;
+  min-height: 36px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--popover-foreground, var(--foreground));
+  font: 600 11.25px/1.45 var(--font-body);
+  text-align: start;
+  cursor: pointer;
+  outline: none;
+}
+
+.raff-select-option:hover,
+.raff-select-option.is-active {
+  background: var(--accent);
+  color: var(--accent-foreground, var(--foreground));
+}
+
+.raff-select-option[aria-selected='true'] {
+  background: color-mix(in srgb, var(--primary) 12%, var(--accent));
+  color: var(--foreground);
+  font-weight: 800;
+}
+
+.raff-select-option[aria-disabled='true'] {
+  opacity: .42;
+  cursor: not-allowed;
+}
+
+.raff-select-option-check {
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  color: var(--primary);
+  opacity: 0;
+}
+
+.raff-select-option[aria-selected='true'] .raff-select-option-check {
+  opacity: 1;
+}
+
+.raff-select-option-check svg {
+  width: 14px;
+  height: 14px;
+}
+
+.raff-select-empty {
+  padding: 18px 12px;
+  text-align: center;
+  color: var(--muted-foreground);
+  font-size: 10.5px;
+}
+
+/* Context-aware dimensions */
+.workspace-select-wrap .raff-select {
+  --raff-select-height: 34px;
+  flex: 1 1 auto;
+}
+
+.workspace-select-wrap .raff-select-trigger {
+  border-color: var(--sidebar-border);
+  background: var(--sidebar-accent);
+  color: var(--sidebar-foreground);
+  box-shadow: none;
+  font-size: 11.5px;
+}
+
+.workspace-select-wrap .raff-select-trigger:hover,
+.workspace-select-wrap .raff-select.is-open .raff-select-trigger {
+  background: color-mix(in srgb, var(--sidebar-accent) 82%, white 5%);
+  border-color: color-mix(in srgb, var(--sidebar-primary) 45%, var(--sidebar-border));
+  box-shadow: 0 0 0 2px var(--sidebar-ring);
+}
+
+.v4-toolbar .raff-select,
+.filters-row .raff-select,
+.search-toolbar .raff-select,
+.library-toolbar .raff-select {
+  width: auto;
+  min-width: 145px;
+  flex: 0 1 220px;
+}
+
+.v4-inline-select.raff-select {
+  --raff-select-height: 32px;
+  width: auto;
+  min-width: 120px;
+}
+
+.v4-inline-select .raff-select-trigger {
+  min-height: 32px;
+  padding-inline: 8px;
+  border-radius: 8px;
+  font-size: 10.5px;
+}
+
+/* Selects inside compact old forms retain the same sizing as other inputs. */
+.field .raff-select,
+.v4-field .raff-select,
+.borrow-form .raff-select,
+.filters-row .raff-select {
+  align-self: stretch;
+}
+
+/* High contrast and dark mode */
+:root[data-theme='dark'] .raff-select-popover {
+  box-shadow: 0 22px 55px rgba(0,0,0,.44), 0 3px 12px rgba(0,0,0,.30);
+}
+
+:root[data-high-contrast='true'] .raff-select-trigger,
+:root[data-high-contrast='true'] .raff-select-popover,
+:root[data-high-contrast='true'] .raff-select-search {
+  border-width: 2px;
+}
+
+@media (max-width: 720px) {
+  .raff-select-popover {
+    max-width: calc(100vw - 16px) !important;
+  }
+
+  .v4-toolbar .raff-select,
+  .filters-row .raff-select,
+  .search-toolbar .raff-select,
+  .library-toolbar .raff-select {
+    width: 100%;
+    flex-basis: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .raff-select-popover { animation: none; }
+  .raff-select-chevron { transition: none; }
+}
+
+/* Reset legacy select decoration accidentally copied to the custom wrapper. */
+.raff-select.v4-inline-select,
+.raff-select.v4-filter,
+.raff-select.v4-select {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}

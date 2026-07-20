@@ -155,7 +155,7 @@ function updateV4Identity() {
   const select = document.getElementById('workspaceSelect');
   const switcher = document.getElementById('workspaceSwitcher');
   const mayChooseWorkspace = ['admin', 'librarian'].includes(user?.role || 'admin');
-  if (select) { select.value = workspace; select.disabled = !mayChooseWorkspace; }
+  if (select) { select.value = workspace; select.disabled = !mayChooseWorkspace; window.RaffSelect?.sync(select); }
   if (switcher) switcher.hidden = !mayChooseWorkspace;
   document.querySelectorAll('.nav-item[data-route]').forEach((button) => {
     const allowed = v4RouteAllowed(button.dataset.route);

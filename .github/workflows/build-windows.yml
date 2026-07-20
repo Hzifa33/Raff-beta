@@ -1,4 +1,4 @@
-name: Build Windows Installer
+name: Build and Test Windows Release
 
 on:
   workflow_dispatch:
@@ -6,9 +6,13 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: read
+
 jobs:
   build-windows:
     runs-on: windows-latest
+    timeout-minutes: 35
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -16,17 +20,34 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
+          cache: npm
 
-      - name: Install dependencies
-        run: npm install
+      - name: Install locked dependencies
+        run: npm ci
 
-      - name: Build Windows installer
+      - name: Syntax checks
+        run: npm run check
+
+      - name: Domain and integrity tests
+        run: npm test
+
+      - name: Build Windows x64 installer
         run: npm run dist:win
 
-      - name: Upload installer artifact
+      - name: Create SHA256 files
+        shell: pwsh
+        run: |
+          Get-ChildItem release -File | ForEach-Object {
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+            "$hash  $($_.Name)" | Out-File -Encoding ascii "$($_.FullName).sha256"
+          }
+
+      - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: raff-windows-installer
-          path: release/*.exe
-          
+          name: raff-4.0.0-windows-x64
+          path: |
+            release/*.exe
+            release/*.sha256
+          if-no-files-found: error

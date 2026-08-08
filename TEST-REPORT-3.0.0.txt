@@ -1,0 +1,22 @@
+Raff 3.0.0 verification report
+Date: 2026-08-06
+
+PASS - JavaScript syntax validation for main.js, preload.js, tests and all src/js modules.
+PASS - Reference-number normalization and uniqueness.
+PASS - Indexed sequential reference generation (2,000 records).
+PASS - Multi-volume partial borrowing and partial returns.
+PASS - Active-loan deletion prevention, trash and restore.
+PASS - Merge versus full database restore.
+PASS - Public-mode private-data redaction and archived-book hiding.
+PASS - Safe bulk updates.
+PASS - Scrypt password/recovery hashing and recovery flow.
+PASS - Five-attempt counter, remaining-attempt state and temporary lock.
+PASS - Future-schema restore rejection.
+PASS - No native Windows open/save/print dialogs or file inputs in the active UI paths.
+PASS - In-app file browser, data-folder browser and print center contracts.
+PASS - Separate x64 and x86 installer commands and separate GitHub Actions artifacts.
+PASS - Barcode labels retain complete text and use a pre-print binary fit pass instead of ellipsis/clamping.
+PASS - Added 3.0 CSS variables resolve correctly; key semantic text/background pairs meet WCAG AA.
+PASS - Public/admin sidebar indicators use dedicated high-contrast colors in both themes.
+
+Installer binaries were not produced in this execution environment because Electron dependencies are not installed here. The source, lockfile, tests and GitHub Actions workflow are prepared for reproducible, separate x64 and x86 builds in a normal npm environment.

@@ -1,0 +1,46 @@
+name: Build Windows Installers
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-windows:
+    name: Windows ${{ matrix.label }}
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: x64
+            builder_arch: x64
+          - label: x86
+            builder_arch: ia32
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build ${{ matrix.label }} installer
+        run: npx electron-builder --win nsis --${{ matrix.builder_arch }} --publish never
+
+      - name: Upload ${{ matrix.label }} installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: raff-windows-${{ matrix.label }}
+          path: release/*.exe
+          if-no-files-found: error

@@ -1,0 +1,45 @@
+[package]
+name = "raff"
+version = "4.0.0"
+description = "RAFF 4.0.0 — Next-Generation Arabic Library Management & Cataloguing Desktop Application"
+authors = ["Hzifa33"]
+license = "MIT"
+repository = "https://github.com/Hzifa33/raff"
+edition = "2021"
+rust-version = "1.77"
+
+[lib]
+name = "raff_core"
+path = "src/lib.rs"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "raff"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10"
+scrypt = { version = "0.11", default-features = false, features = ["std"] }
+rand = "0.8"
+subtle = "2.5"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
+hex = "0.4"
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
+rusqlite = { version = "0.32", features = ["bundled"] }
+tauri = { version = "2", features = [] }
+
+[target.'cfg(target_os = "android")'.dependencies]
+rusqlite = { version = "0.32", default-features = false }
+
+[target.'cfg(not(target_os = "android"))'.build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

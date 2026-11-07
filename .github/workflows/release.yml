@@ -1,0 +1,406 @@
+name: Build & Publish RAFF 4.0.0 Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to publish (e.g. v4.0.0)'
+        required: false
+        default: 'v4.0.0'
+  push:
+    tags:
+      - 'v4.0.0'
+      - 'v4.*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: raff-v4-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prepare-release:
+    name: Prepare release metadata
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Resolve version and tag
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            TAG="${GITHUB_REF_NAME}"
+            VERSION="${TAG#v}"
+          elif [[ -n "${{ github.event.inputs.tag }}" ]]; then
+            TAG="${{ github.event.inputs.tag }}"
+            VERSION="${TAG#v}"
+          else
+            VERSION="$(node -p "require('./package.json').version")"
+            TAG="v${VERSION}"
+          fi
+
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid semantic version: $VERSION" >&2
+            exit 1
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Resolved release: $TAG ($VERSION)"
+
+  build-windows:
+    name: Build Windows (${{ matrix.label }})
+    needs: prepare-release
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: x64
+            rust_target: x86_64-pc-windows-msvc
+          - label: x86
+            rust_target: i686-pc-windows-msvc
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Rust toolchain (${{ matrix.rust_target }})
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+          key: win-${{ matrix.label }}
+
+      - name: Sync version across package.json & Tauri config
+        shell: bash
+        env:
+          VERSION: ${{ needs.prepare-release.outputs.version }}
+        run: |
+          node -e '
+            const fs = require("fs");
+            const ver = process.env.VERSION;
+            const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+            pkg.version = ver;
+            fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2) + "\n");
+            const tauri = JSON.parse(fs.readFileSync("src-tauri/tauri.conf.json", "utf8"));
+            tauri.version = ver;
+            fs.writeFileSync("src-tauri/tauri.conf.json", JSON.stringify(tauri, null, 2) + "\n");
+          '
+
+      - name: Install dependencies & generate platform icons
+        shell: bash
+        run: |
+          rm -f package-lock.json
+          npm install
+          npx tauri icon assets/icon.png
+
+      - name: Build frontend & run Rust unit tests
+        run: |
+          npm run build
+          cargo test --manifest-path src-tauri/Cargo.toml --target ${{ matrix.rust_target }}
+
+      - name: Build Windows NSIS installer (${{ matrix.label }})
+        run: npx tauri build --target ${{ matrix.rust_target }} --bundles nsis
+
+      - name: Normalize installer filename & compute SHA-256
+        shell: pwsh
+        env:
+          VERSION: ${{ needs.prepare-release.outputs.version }}
+          RELEASE_ARCH: ${{ matrix.label }}
+          RUST_TARGET: ${{ matrix.rust_target }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $bundleDir = "src-tauri/target/$env:RUST_TARGET/release/bundle/nsis"
+          $exe = Get-ChildItem "$bundleDir/*.exe" | Select-Object -First 1
+          if (-not $exe) { throw "NSIS installer was not found in $bundleDir" }
+
+          New-Item -ItemType Directory -Force -Path "release" | Out-Null
+          $targetName = "Raff-$env:VERSION-Windows-$env:RELEASE_ARCH-Setup.exe"
+          $targetPath = Join-Path "release" $targetName
+          Copy-Item -Force $exe.FullName $targetPath
+
+          $hash = (Get-FileHash $targetPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $targetName" | Set-Content -Encoding ascii "$targetPath.sha256"
+          Write-Host "SHA256 ($targetName): $hash"
+
+      - name: Upload Windows ${{ matrix.label }} release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: raff-windows-${{ matrix.label }}
+          path: |
+            release/Raff-${{ needs.prepare-release.outputs.version }}-Windows-${{ matrix.label }}-Setup.exe
+            release/Raff-${{ needs.prepare-release.outputs.version }}-Windows-${{ matrix.label }}-Setup.exe.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+  build-linux:
+    name: Build Linux (x64 AppImage & DEB)
+    needs: prepare-release
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Linux Tauri system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libssl-dev \
+            libxdo-dev \
+            libfuse2
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Rust stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+          key: linux-x64
+
+      - name: Sync version across package.json & Tauri config
+        env:
+          VERSION: ${{ needs.prepare-release.outputs.version }}
+        run: |
+          node -e '
+            const fs = require("fs");
+            const ver = process.env.VERSION;
+            const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+            pkg.version = ver;
+            fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2) + "\n");
+            const tauri = JSON.parse(fs.readFileSync("src-tauri/tauri.conf.json", "utf8"));
+            tauri.version = ver;
+            fs.writeFileSync("src-tauri/tauri.conf.json", JSON.stringify(tauri, null, 2) + "\n");
+          '
+
+      - name: Install dependencies & generate platform icons
+        run: |
+          rm -f package-lock.json
+          npm install
+          npx tauri icon assets/icon.png
+
+      - name: Run full verification suite
+        run: npm test
+
+      - name: Build Linux AppImage & DEB packages
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: 1
+          NO_STRIP: true
+        run: npx tauri build --bundles deb,appimage
+
+      - name: Normalize Linux artifacts & compute SHA-256
+        env:
+          VERSION: ${{ needs.prepare-release.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p release
+
+          APPIMAGE="$(find src-tauri/target/release/bundle/appimage -maxdepth 1 -type f -name '*.AppImage' | head -n 1)"
+          DEB="$(find src-tauri/target/release/bundle/deb -maxdepth 1 -type f -name '*.deb' | head -n 1)"
+
+          if [[ -n "$APPIMAGE" ]]; then
+            TARGET_APPIMAGE="release/Raff-${VERSION}-Linux-x64.AppImage"
+            cp "$APPIMAGE" "$TARGET_APPIMAGE"
+            (cd release && sha256sum "$(basename "$TARGET_APPIMAGE")" > "$(basename "$TARGET_APPIMAGE").sha256")
+          fi
+
+          if [[ -n "$DEB" ]]; then
+            TARGET_DEB="release/Raff-${VERSION}-Linux-x64.deb"
+            cp "$DEB" "$TARGET_DEB"
+            (cd release && sha256sum "$(basename "$TARGET_DEB")" > "$(basename "$TARGET_DEB").sha256")
+          fi
+
+          ls -lh release/
+
+      - name: Upload Linux release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: raff-linux-x64
+          path: |
+            release/Raff-${{ needs.prepare-release.outputs.version }}-Linux-x64.*
+          if-no-files-found: error
+          retention-days: 14
+
+  build-macos:
+    name: Build macOS (Universal DMG)
+    needs: prepare-release
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Rust stable toolchain (Universal Apple Silicon & Intel)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+          key: macos-universal
+
+      - name: Sync version across package.json & Tauri config
+        env:
+          VERSION: ${{ needs.prepare-release.outputs.version }}
+        run: |
+          node -e '
+            const fs = require("fs");
+            const ver = process.env.VERSION;
+            const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+            pkg.version = ver;
+            fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2) + "\n");
+            const tauri = JSON.parse(fs.readFileSync("src-tauri/tauri.conf.json", "utf8"));
+            tauri.version = ver;
+            fs.writeFileSync("src-tauri/tauri.conf.json", JSON.stringify(tauri, null, 2) + "\n");
+          '
+
+      - name: Install dependencies & generate platform icons
+        run: |
+          rm -f package-lock.json
+          npm install
+          npx tauri icon assets/icon.png
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Build macOS Universal DMG installer
+        run: npx tauri build --target universal-apple-darwin --bundles dmg
+
+      - name: Normalize macOS DMG & compute SHA-256
+        env:
+          VERSION: ${{ needs.prepare-release.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          DMG="$(find src-tauri/target/universal-apple-darwin/release/bundle/dmg -maxdepth 1 -type f -name '*.dmg' | head -n 1)"
+          if [[ -z "$DMG" ]]; then
+            echo "macOS DMG was not produced" >&2
+            exit 1
+          fi
+          TARGET_DMG="release/Raff-${VERSION}-macOS-universal.dmg"
+          cp "$DMG" "$TARGET_DMG"
+          (cd release && shasum -a 256 "$(basename "$TARGET_DMG")" > "$(basename "$TARGET_DMG").sha256")
+          ls -lh release/
+
+      - name: Upload macOS release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: raff-macos-universal
+          path: |
+            release/Raff-${{ needs.prepare-release.outputs.version }}-macOS-universal.*
+          if-no-files-found: error
+          retention-days: 14
+
+  publish-release:
+    name: Publish GitHub Release Assets
+    needs:
+      - prepare-release
+      - build-windows
+      - build-linux
+      - build-macos
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all platform build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets/raw
+
+      - name: Verify checksums and assemble release directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets/publish
+
+          find release-assets/raw -type f \
+            \( -name '*.exe' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.dmg' -o -name '*.sha256' \) \
+            -exec cp {} release-assets/publish/ \;
+
+          cd release-assets/publish
+
+          for checksum in *.sha256; do
+            sha256sum -c "$checksum"
+          done
+
+          sha256sum *.exe *.AppImage *.deb *.dmg > SHA256SUMS.txt
+
+          echo "Verified release assets:"
+          ls -lh
+          echo
+          cat SHA256SUMS.txt
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare-release.outputs.tag }}
+          VERSION: ${{ needs.prepare-release.outputs.version }}
+          TARGET_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          NOTES_FILE="CHANGELOG-4.0.0.md"
+          NOTES_ARGS=(--generate-notes)
+          if [[ -f "$NOTES_FILE" ]]; then
+            NOTES_ARGS=(--notes-file "$NOTES_FILE")
+          fi
+
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Updating existing GitHub Release $TAG..."
+            gh release upload "$TAG" release-assets/publish/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --clobber
+            gh release edit "$TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Raff $TAG" \
+              --draft=false \
+              --prerelease=false \
+              --latest
+          else
+            echo "Creating new GitHub Release $TAG..."
+            gh release create "$TAG" release-assets/publish/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$TARGET_SHA" \
+              --title "Raff $TAG" \
+              "${NOTES_ARGS[@]}" \
+              --latest
+          fi

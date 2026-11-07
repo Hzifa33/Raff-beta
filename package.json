@@ -1,0 +1,51 @@
+{
+  "name": "raff-library",
+  "version": "4.0.0",
+  "description": "رَفّ 4.0.0 — الجيل الجديد من نظام إدارة وفهرسة المكتبات بواجهة فائقة الحداثة ومحرك Rust + Tauri 2 + SQLite",
+  "private": true,
+  "author": "Hzifa33",
+  "license": "MIT",
+  "scripts": {
+    "dev": "node ./node_modules/vite/bin/vite.js",
+    "build": "node ./node_modules/typescript/bin/tsc --noEmit && node ./node_modules/vite/bin/vite.js build",
+    "preview": "node ./node_modules/vite/bin/vite.js preview",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "tauri:build:x64": "tauri build --target x86_64-pc-windows-msvc --bundles nsis",
+    "tauri:build:x86": "tauri build --target i686-pc-windows-msvc --bundles nsis",
+    "dist": "npm run build && tauri build",
+    "dist:win": "npm run dist:win:x64 && npm run dist:win:x86",
+    "dist:win:x64": "npm run build && tauri build --target x86_64-pc-windows-msvc --bundles nsis",
+    "dist:win:x86": "npm run build && tauri build --target i686-pc-windows-msvc --bundles nsis",
+    "dist:linux": "npm run build && tauri build --bundles appimage,deb",
+    "dist:mac": "npm run build && tauri build --bundles dmg,app",
+    "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml && cargo build --manifest-path src-tauri/Cargo.toml",
+    "test:v4": "node tests/v4-suite.test.js",
+    "bench": "cargo test --manifest-path src-tauri/Cargo.toml --release bench_10k_books_and_5k_loans_sqlite_performance -- --nocapture",
+    "test": "npm run build && npm run test:rust && npm run test:v4"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.2.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zustand": "^5.0.2"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.2.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Hzifa33/raff.git"
+  },
+  "raffUpdater": {
+    "owner": "Hzifa33",
+    "repo": "raff",
+    "checkIntervalHours": 24
+  }
+}

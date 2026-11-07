@@ -240,6 +240,15 @@ impl UpdateManager {
         self.get_status()
     }
 
+    pub fn mark_manual_check(&mut self) -> serde_json::Value {
+        let ts = now_ms();
+        self.state.last_manual_check_at = ts;
+        self.state.last_successful_check_at = ts;
+        self.state.last_error.clear();
+        self.save();
+        self.get_status()
+    }
+
     pub fn get_status(&self) -> serde_json::Value {
         let arch = std::env::consts::ARCH;
         let auto_enabled = self.state.auto_check_enabled

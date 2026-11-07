@@ -1,3 +1,4 @@
+import React from 'react';
 import { create } from 'zustand';
 import {
   ActivityItem,
@@ -18,42 +19,36 @@ import {
 } from '../types';
 import { invokeRaff } from '../lib/ipc';
 
-export interface ToastNotice {
+export type SettingsSubTab =
+  | 'brand'
+  | 'loans'
+  | 'scanner'
+  | 'security'
+  | 'export'
+  | 'backup'
+  | 'trash'
+  | 'system';
+
+interface ToastMessage {
   id: string;
-  type: 'success' | 'error' | 'info';
-  message: string;
+  type: 'success' | 'error' | 'info' | 'warning';
+  text: string;
 }
 
-interface RaffState {
-  // UI & Theme State
+interface RaffStore {
   theme: ThemeMode;
-  themeTransitioning: boolean;
   lang: LanguageDir;
   activeTab: NavTab;
-  dockExpanded: boolean;
+  settingsTab: SettingsSubTab;
+  sidebarExpanded: boolean;
+  focusPasswordTrigger: number;
+  isTransitioningTheme: boolean;
   loading: boolean;
-  toasts: ToastNotice[];
 
-  // Modals & Selection
-  selectedBookId: string | null;
-  editingBook: Book | null;
-  showLoginModal: boolean;
-  showPrintModal: boolean;
-  printHtmlContent: string;
-  printTitle: string;
-
-  // Search & Filter State
-  searchQuery: string;
-  searchField: string;
-  searchStatus: string;
-  searchSort: string;
-  selectedCatalogueIds: string[];
-
-  // Core Data State
   books: Book[];
   stats: LibraryStats | null;
   meta: LibraryMeta | null;
-  settings: Settings | null;
+  settings: Settings;
   loans: LoanCenterItem[];
   loanFilter: string;
   borrowers: BorrowerProfile[];
@@ -61,79 +56,150 @@ interface RaffState {
   activity: ActivityItem[];
   backups: BackupInfo[];
   integrity: IntegrityReport | null;
-  auth: AuthState | null;
+  auth: AuthState;
   updater: UpdaterState | null;
 
-  // Actions
-  setTheme: (theme: ThemeMode) => void;
-  toggleThemeWithWipe: () => void;
-  setLang: (lang: LanguageDir) => void;
-  setActiveTab: (tab: NavTab) => void;
-  setDockExpanded: (expanded: boolean) => void;
-  pushToast: (message: string, type?: 'success' | 'error' | 'info') => void;
-  dismissToast: (id: string) => void;
+  // Search & Filter state
+  searchQuery: string;
+  searchField: string;
+  statusFilter: string;
+  categoryFilter: string;
+  publisherFilter: string;
+  shelfFilter: string;
+  sortBy: string;
+  selectedBookIds: string[];
 
-  setSelectedBookId: (id: string | null) => void;
-  setEditingBook: (book: Book | null) => void;
-  setShowLoginModal: (show: boolean) => void;
-  openPrintCenter: (title: string, html: string) => void;
-  closePrintCenter: () => void;
+  // Modals & Drawers
+  inspectedBook: Book | null;
+  editingBook: Book | null;
+  borrowingBook: Book | null;
+  returningBook: { book: Book; loanId?: string } | null;
+  adminLoginModalOpen: boolean;
+  bulkModalOpen: boolean;
+  labelPreviewBook: Book | null;
+
+  toasts: ToastMessage[];
+
+  // Actions
+  hydrateAll: () => Promise<void>;
+  setTheme: (theme: ThemeMode, event?: React.MouseEvent) => void;
+  toggleTheme: (event?: React.MouseEvent) => void;
+  setLang: (lang: LanguageDir) => void;
+  toggleLang: () => void;
+  setActiveTab: (tab: NavTab) => void;
+  openSettingsTab: (tab: SettingsSubTab, focusPassword?: boolean) => void;
+  toggleSidebar: () => void;
 
   setSearchQuery: (q: string) => void;
   setSearchField: (f: string) => void;
-  setSearchStatus: (s: string) => void;
-  setSearchSort: (s: string) => void;
-  toggleCatalogueSelect: (id: string) => void;
-  setCatalogueSelection: (ids: string[]) => void;
+  setStatusFilter: (s: string) => void;
+  setCategoryFilter: (c: string) => void;
+  setPublisherFilter: (p: string) => void;
+  setShelfFilter: (sh: string) => void;
+  setSortBy: (s: string) => void;
+  resetSearchFilters: () => void;
+  setLoanFilter: (f: string) => Promise<void>;
+  toggleSelectBook: (id: string) => void;
+  selectAllBooks: (ids: string[]) => void;
+  clearSelection: () => void;
 
-  // Async Data Operations
-  hydrateAll: () => Promise<void>;
-  refreshCore: () => Promise<void>;
-  addBook: (payload: Partial<Book>) => Promise<Book>;
-  updateBook: (id: string, patch: Partial<Book>) => Promise<Book>;
+  setInspectedBook: (b: Book | null) => void;
+  setEditingBook: (b: Book | null) => void;
+  setBorrowingBook: (b: Book | null) => void;
+  setReturningBook: (payload: { book: Book; loanId?: string } | null) => void;
+  setAdminLoginModalOpen: (open: boolean) => void;
+  setBulkModalOpen: (open: boolean) => void;
+  setLabelPreviewBook: (b: Book | null) => void;
+
+  addBook: (payload: Partial<Book>) => Promise<Book | null>;
+  updateBook: (id: string, patch: Partial<Book>) => Promise<Book | null>;
   removeBook: (id: string) => Promise<void>;
   restoreBook: (id: string) => Promise<void>;
-  borrowCopy: (bookId: string, borrower: Record<string, any>) => Promise<Book>;
-  returnLoan: (bookId: string, loanId?: string) => Promise<Book>;
-  returnLoanParts: (bookId: string, loanId: string, volumes: number[]) => Promise<Book>;
-  bulkUpdateBooks: (bookIds: string[], patch: Record<string, any>) => Promise<void>;
-  loadLoansCenter: (filter?: string) => Promise<void>;
+  purgeTrash: (id?: string) => Promise<void>;
+  borrowCopy: (bookId: string, borrower: Record<string, any>) => Promise<void>;
+  returnLoan: (bookId: string, loanId?: string) => Promise<void>;
+  returnLoanParts: (bookId: string, loanId: string, volumes: number[]) => Promise<void>;
+  bulkUpdateBooks: (patch: Record<string, any>) => Promise<void>;
   updateSettings: (patch: Partial<Settings>) => Promise<void>;
-  runIntegrityCheck: () => Promise<IntegrityReport>;
-  runIntegrityRepair: () => Promise<void>;
-  createBackup: (reason?: string) => Promise<void>;
+  applyLoanDurationToOpenLoans: (days?: number) => Promise<void>;
+  saveCurrentFilter: (name: string) => Promise<void>;
+  deleteSavedFilter: (id: string) => Promise<void>;
+  createManualBackup: () => Promise<void>;
+  restoreBackupFile: (filePath: string) => Promise<void>;
+  importJsonData: (content: string, mode: 'merge' | 'replace') => Promise<void>;
+  resetAllData: () => Promise<void>;
+  runIntegrityCheck: () => Promise<void>;
+  repairIntegrity: () => Promise<void>;
+  exportLibrary: (format: string) => Promise<string>;
+
   loginAdmin: (password: string) => Promise<boolean>;
+  recoverAdminPassword: (answer: string, newPassword: string) => Promise<boolean>;
   logoutToPublic: () => Promise<void>;
-  setupSecurity: (payload: Record<string, any>) => Promise<void>;
-  disableSecurity: () => Promise<void>;
+  setupAdminAuth: (
+    password: string,
+    recoveryQuestion: string,
+    recoveryAnswer: string,
+    publicModeEnabled?: boolean
+  ) => Promise<void>;
+  updateAdminCredentials: (
+    newPassword?: string,
+    recoveryQuestion?: string,
+    recoveryAnswer?: string
+  ) => Promise<void>;
+  setPublicModePreference: (enabled: boolean) => Promise<void>;
+  disableAdminAuth: () => Promise<void>;
+  checkUpdatesNow: () => Promise<void>;
+  setAutoUpdatePreference: (autoCheck: boolean) => Promise<void>;
+
+  pushToast: (type: ToastMessage['type'], text: string) => void;
+  dismissToast: (id: string) => void;
 }
 
-export const useRaffStore = create<RaffState>((set, get) => ({
+const DEFAULT_SETTINGS: Settings = {
+  institutionName: 'مكتبة رَفّ النموذجية',
+  logo: '',
+  labelColumns: 4,
+  labelSize: 'small',
+  labelShowPrice: true,
+  labelShowShelf: true,
+  labelShowMicrotext: true,
+  loanDurationDays: 30,
+  scannerGapMs: 35,
+  scannerTerminator: 'Enter',
+  savedFilters: [],
+};
+
+const DEFAULT_AUTH: AuthState = {
+  enabled: false,
+  username: 'admin',
+  publicModeEnabled: true,
+  recoveryConfigured: false,
+  recoveryQuestion: '',
+  failedAttempts: 0,
+  remainingAttempts: 5,
+  maxFailedAttempts: 5,
+  lockedOut: false,
+  lockoutRemainingMs: 0,
+  unlocked: true,
+  mode: 'admin',
+};
+
+const PUBLIC_ALLOWED_TABS: NavTab[] = ['discover', 'catalogue'];
+
+export const useRaffStore = create<RaffStore>((set, get) => ({
   theme: (localStorage.getItem('raff_v4_theme') as ThemeMode) || 'light',
-  themeTransitioning: false,
   lang: (localStorage.getItem('raff_v4_lang') as LanguageDir) || 'ar',
   activeTab: 'overview',
-  dockExpanded: false,
+  settingsTab: 'brand',
+  sidebarExpanded: localStorage.getItem('raff_v4_sidebar') !== 'collapsed',
+  focusPasswordTrigger: 0,
+  isTransitioningTheme: false,
   loading: true,
-  toasts: [],
-
-  selectedBookId: null,
-  editingBook: null,
-  showLoginModal: false,
-  showPrintModal: false,
-  printHtmlContent: '',
-  printTitle: '',
-
-  searchQuery: '',
-  searchField: 'all',
-  searchStatus: 'all',
-  searchSort: 'newest',
-  selectedCatalogueIds: [],
 
   books: [],
   stats: null,
   meta: null,
-  settings: null,
+  settings: DEFAULT_SETTINGS,
   loans: [],
   loanFilter: 'open',
   borrowers: [],
@@ -141,274 +207,722 @@ export const useRaffStore = create<RaffState>((set, get) => ({
   activity: [],
   backups: [],
   integrity: null,
-  auth: null,
+  auth: DEFAULT_AUTH,
   updater: null,
 
-  setTheme: (theme) => {
-    localStorage.setItem('raff_v4_theme', theme);
-    document.documentElement.setAttribute('data-theme', theme);
-    set({ theme });
-  },
+  searchQuery: '',
+  searchField: 'all',
+  statusFilter: 'all',
+  categoryFilter: 'all',
+  publisherFilter: 'all',
+  shelfFilter: 'all',
+  sortBy: 'newest',
+  selectedBookIds: [],
 
-  toggleThemeWithWipe: () => {
-    const next: ThemeMode = get().theme === 'light' ? 'dark' : 'light';
-    set({ themeTransitioning: true });
-    localStorage.setItem('raff_v4_theme', next);
-    document.documentElement.setAttribute('data-theme', next);
-    set({ theme: next });
-    setTimeout(() => set({ themeTransitioning: false }), 520);
-  },
+  inspectedBook: null,
+  editingBook: null,
+  borrowingBook: null,
+  returningBook: null,
+  adminLoginModalOpen: false,
+  bulkModalOpen: false,
+  labelPreviewBook: null,
 
-  setLang: (lang) => {
-    localStorage.setItem('raff_v4_lang', lang);
-    document.documentElement.lang = lang;
-    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
-    set({ lang });
-  },
-
-  setActiveTab: (activeTab) => set({ activeTab }),
-  setDockExpanded: (dockExpanded) => set({ dockExpanded }),
-
-  pushToast: (message, type = 'success') => {
-    const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    set((s) => ({ toasts: [...s.toasts, { id, type, message }] }));
-    setTimeout(() => {
-      set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }));
-    }, 3600);
-  },
-
-  dismissToast: (id) =>
-    set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
-
-  setSelectedBookId: (selectedBookId) => set({ selectedBookId }),
-  setEditingBook: (editingBook) => set({ editingBook }),
-  setShowLoginModal: (showLoginModal) => set({ showLoginModal }),
-
-  openPrintCenter: (printTitle, printHtmlContent) =>
-    set({ showPrintModal: true, printTitle, printHtmlContent }),
-  closePrintCenter: () =>
-    set({ showPrintModal: false, printHtmlContent: '', printTitle: '' }),
-
-  setSearchQuery: (searchQuery) => set({ searchQuery }),
-  setSearchField: (searchField) => set({ searchField }),
-  setSearchStatus: (searchStatus) => set({ searchStatus }),
-  setSearchSort: (searchSort) => set({ searchSort }),
-
-  toggleCatalogueSelect: (id) =>
-    set((s) => ({
-      selectedCatalogueIds: s.selectedCatalogueIds.includes(id)
-        ? s.selectedCatalogueIds.filter((x) => x !== id)
-        : [...s.selectedCatalogueIds, id],
-    })),
-
-  setCatalogueSelection: (selectedCatalogueIds) => set({ selectedCatalogueIds }),
+  toasts: [],
 
   hydrateAll: async () => {
     set({ loading: true });
     try {
       const auth = await invokeRaff<AuthState>('auth_get_state');
-      const [books, settings, meta, updater] = await Promise.all([
+      const isPublicMode = Boolean(auth?.enabled && (!auth?.unlocked || auth?.mode === 'public'));
+
+      if (isPublicMode) {
+        const [books, meta, settings] = await Promise.all([
+          invokeRaff<Book[]>('get_all_books'),
+          invokeRaff<LibraryMeta>('get_meta'),
+          invokeRaff<Settings>('get_settings'),
+        ]);
+        const currentTab = get().activeTab;
+        const nextTab: NavTab = PUBLIC_ALLOWED_TABS.includes(currentTab) ? currentTab : 'discover';
+        set({
+          books: books || [],
+          meta: meta || null,
+          settings: settings || DEFAULT_SETTINGS,
+          auth: auth || DEFAULT_AUTH,
+          activeTab: nextTab,
+          loading: false,
+        });
+        return;
+      }
+
+      const [
+        books,
+        stats,
+        meta,
+        settings,
+        loans,
+        borrowers,
+        trash,
+        activity,
+        backups,
+        updater,
+      ] = await Promise.all([
         invokeRaff<Book[]>('get_all_books'),
-        invokeRaff<Settings>('get_settings'),
+        invokeRaff<LibraryStats>('get_stats'),
         invokeRaff<LibraryMeta>('get_meta'),
+        invokeRaff<Settings>('get_settings'),
+        invokeRaff<LoanCenterItem[]>('get_loan_center', { filter: get().loanFilter }),
+        invokeRaff<BorrowerProfile[]>('get_borrowers_directory'),
+        invokeRaff<TrashItem[]>('get_trash'),
+        invokeRaff<ActivityItem[]>('get_activity', { limit: 120 }),
+        invokeRaff<BackupInfo[]>('list_backups'),
         invokeRaff<UpdaterState>('updater_get_state'),
       ]);
 
-      let stats: LibraryStats | null = null;
-      let loans: LoanCenterItem[] = [];
-      let borrowers: BorrowerProfile[] = [];
-      let trash: TrashItem[] = [];
-      let activity: ActivityItem[] = [];
-      let backups: BackupInfo[] = [];
-
-      if (!auth || auth.mode === 'admin') {
-        [stats, loans, borrowers, trash, activity, backups] = await Promise.all([
-          invokeRaff<LibraryStats>('get_stats'),
-          invokeRaff<LoanCenterItem[]>('get_loan_center', { filter: get().loanFilter }),
-          invokeRaff<BorrowerProfile[]>('get_borrowers_directory'),
-          invokeRaff<TrashItem[]>('get_trash'),
-          invokeRaff<ActivityItem[]>('get_activity', { limit: 150 }),
-          invokeRaff<BackupInfo[]>('list_backups'),
-        ]);
-      }
-
       set({
-        auth,
         books: books || [],
-        settings,
-        meta,
-        stats,
+        stats: stats || null,
+        meta: meta || null,
+        settings: settings || DEFAULT_SETTINGS,
         loans: loans || [],
         borrowers: borrowers || [],
         trash: trash || [],
         activity: activity || [],
         backups: backups || [],
-        updater,
+        auth: auth || DEFAULT_AUTH,
+        updater: updater || null,
         loading: false,
       });
     } catch (err: any) {
       set({ loading: false });
-      get().pushToast(err?.message || 'حدث خطأ أثناء تحميل البيانات', 'error');
+      get().pushToast('error', err?.message || 'تعذر تحميل بيانات المكتبة');
     }
   },
 
-  refreshCore: async () => {
-    const auth = get().auth;
-    const isAdmin = !auth || auth.mode === 'admin';
-    const [books, meta] = await Promise.all([
-      invokeRaff<Book[]>('get_all_books'),
-      invokeRaff<LibraryMeta>('get_meta'),
-    ]);
-    if (isAdmin) {
-      const [stats, loans, borrowers, trash, activity] = await Promise.all([
-        invokeRaff<LibraryStats>('get_stats'),
-        invokeRaff<LoanCenterItem[]>('get_loan_center', { filter: get().loanFilter }),
-        invokeRaff<BorrowerProfile[]>('get_borrowers_directory'),
-        invokeRaff<TrashItem[]>('get_trash'),
-        invokeRaff<ActivityItem[]>('get_activity', { limit: 150 }),
-      ]);
-      set({ books, meta, stats, loans, borrowers, trash, activity });
+  setTheme: (theme, event) => {
+    const current = get().theme;
+    if (current === theme) return;
+
+    const applyDomTheme = () => {
+      localStorage.setItem('raff_v4_theme', theme);
+      document.documentElement.setAttribute('data-theme', theme);
+      set({ theme });
+    };
+
+    if (typeof document !== 'undefined') {
+      const x = event?.clientX ?? window.innerWidth / 2;
+      const y = event?.clientY ?? 28;
+      const endRadius = Math.hypot(
+        Math.max(x, window.innerWidth - x),
+        Math.max(y, window.innerHeight - y)
+      );
+      document.documentElement.style.setProperty('--vt-x', `${x}px`);
+      document.documentElement.style.setProperty('--vt-y', `${y}px`);
+      document.documentElement.style.setProperty('--vt-r', `${Math.ceil(endRadius)}px`);
+
+      const docAny = document as any;
+      if (typeof docAny.startViewTransition === 'function') {
+        try {
+          set({ isTransitioningTheme: true });
+          const transition = docAny.startViewTransition(() => {
+            applyDomTheme();
+          });
+          transition.finished.finally(() => {
+            set({ isTransitioningTheme: false });
+          });
+          return;
+        } catch {
+          // fallback below
+        }
+      }
+    }
+
+    set({ isTransitioningTheme: true });
+    applyDomTheme();
+    setTimeout(() => set({ isTransitioningTheme: false }), 520);
+  },
+
+  toggleTheme: (event) => {
+    const next: ThemeMode = get().theme === 'light' ? 'dark' : 'light';
+    get().setTheme(next, event);
+  },
+
+  setLang: (lang) => {
+    localStorage.setItem('raff_v4_lang', lang);
+    document.documentElement.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
+    document.documentElement.setAttribute('lang', lang);
+    set({ lang });
+  },
+
+  toggleLang: () => {
+    const next: LanguageDir = get().lang === 'ar' ? 'en' : 'ar';
+    get().setLang(next);
+  },
+
+  setActiveTab: (activeTab) => {
+    const { auth } = get();
+    const isPublicMode = Boolean(auth?.enabled && (!auth?.unlocked || auth?.mode === 'public'));
+    if (isPublicMode && !PUBLIC_ALLOWED_TABS.includes(activeTab)) {
+      set({ activeTab: 'discover' });
+      return;
+    }
+    set({ activeTab });
+  },
+
+  openSettingsTab: (settingsTab, focusPassword = false) => {
+    set((state) => ({
+      activeTab: 'settings',
+      settingsTab,
+      focusPasswordTrigger: focusPassword ? state.focusPasswordTrigger + 1 : state.focusPasswordTrigger,
+    }));
+  },
+
+  toggleSidebar: () => {
+    const next = !get().sidebarExpanded;
+    localStorage.setItem('raff_v4_sidebar', next ? 'expanded' : 'collapsed');
+    set({ sidebarExpanded: next });
+  },
+
+  setSearchQuery: (searchQuery) => set({ searchQuery }),
+  setSearchField: (searchField) => set({ searchField }),
+  setStatusFilter: (statusFilter) => set({ statusFilter }),
+  setCategoryFilter: (categoryFilter) => set({ categoryFilter }),
+  setPublisherFilter: (publisherFilter) => set({ publisherFilter }),
+  setShelfFilter: (shelfFilter) => set({ shelfFilter }),
+  setSortBy: (sortBy) => set({ sortBy }),
+  resetSearchFilters: () =>
+    set({
+      searchQuery: '',
+      searchField: 'all',
+      statusFilter: 'all',
+      categoryFilter: 'all',
+      publisherFilter: 'all',
+      shelfFilter: 'all',
+      sortBy: 'newest',
+    }),
+
+  setLoanFilter: async (loanFilter) => {
+    set({ loanFilter });
+    const loans = await invokeRaff<LoanCenterItem[]>('get_loan_center', { filter: loanFilter });
+    set({ loans: loans || [] });
+  },
+
+  toggleSelectBook: (id) => {
+    const cur = get().selectedBookIds;
+    if (cur.includes(id)) {
+      set({ selectedBookIds: cur.filter((x) => x !== id) });
     } else {
-      set({ books, meta });
+      set({ selectedBookIds: [...cur, id] });
     }
   },
+
+  selectAllBooks: (ids) => set({ selectedBookIds: ids }),
+  clearSelection: () => set({ selectedBookIds: [] }),
+
+  setInspectedBook: (inspectedBook) => set({ inspectedBook }),
+  setEditingBook: (editingBook) => set({ editingBook }),
+  setBorrowingBook: (borrowingBook) => set({ borrowingBook }),
+  setReturningBook: (returningBook) => set({ returningBook }),
+  setAdminLoginModalOpen: (adminLoginModalOpen) => set({ adminLoginModalOpen }),
+  setBulkModalOpen: (bulkModalOpen) => set({ bulkModalOpen }),
+  setLabelPreviewBook: (labelPreviewBook) => set({ labelPreviewBook }),
 
   addBook: async (payload) => {
-    const book = await invokeRaff<Book>('add_book', { payload });
-    await get().refreshCore();
-    get().pushToast(`تمت إضافة "${book.title}" بالرقم المرجعي ${book.referenceNumber}`);
-    return book;
+    try {
+      const created = await invokeRaff<Book>('add_book', { payload });
+      await get().hydrateAll();
+      get().pushToast(
+        'success',
+        get().lang === 'ar'
+          ? `تمت إضافة "${created.title}" برقم مرجعي ${created.referenceNumber}`
+          : `Added "${created.title}" (${created.referenceNumber})`
+      );
+      return created;
+    } catch (err: any) {
+      get().pushToast('error', String(err?.message || err));
+      return null;
+    }
   },
 
   updateBook: async (id, patch) => {
-    const book = await invokeRaff<Book>('update_book', { id, patch });
-    await get().refreshCore();
-    get().pushToast(`تم حفظ التعديلات على "${book.title}"`);
-    return book;
+    try {
+      const updated = await invokeRaff<Book>('update_book', { id, patch });
+      await get().hydrateAll();
+      set({ editingBook: null, inspectedBook: updated });
+      get().pushToast(
+        'success',
+        get().lang === 'ar'
+          ? `تم حفظ التعديلات على "${updated.title}"`
+          : `Saved changes to "${updated.title}"`
+      );
+      return updated;
+    } catch (err: any) {
+      get().pushToast('error', String(err?.message || err));
+      return null;
+    }
   },
 
   removeBook: async (id) => {
-    await invokeRaff('remove_book', { id });
-    if (get().selectedBookId === id) set({ selectedBookId: null });
-    await get().refreshCore();
-    get().pushToast('تم نقل الكتاب إلى سلة المهملات (يُحتفظ به 30 يوماً)', 'info');
+    try {
+      await invokeRaff('remove_book', { id });
+      await get().hydrateAll();
+      set({ inspectedBook: null });
+      get().pushToast(
+        'info',
+        get().lang === 'ar' ? 'نُقل الكتاب إلى سلة المحذوفات' : 'Book moved to Trash'
+      );
+    } catch (err: any) {
+      get().pushToast('error', String(err?.message || err));
+    }
   },
 
   restoreBook: async (id) => {
-    const book = await invokeRaff<Book>('restore_book', { id });
-    await get().refreshCore();
-    get().pushToast(`تمت استعادة "${book.title}" إلى الفهرس`);
+    try {
+      await invokeRaff('restore_book', { id });
+      await get().hydrateAll();
+      get().pushToast(
+        'success',
+        get().lang === 'ar' ? 'تمت استعادة الكتاب إلى الفهرس بنجاح' : 'Book restored to catalogue'
+      );
+    } catch (err: any) {
+      get().pushToast('error', String(err?.message || err));
+    }
+  },
+
+  purgeTrash: async (id) => {
+    try {
+      await invokeRaff('purge_trash', id ? { id } : {});
+      await get().hydrateAll();
+      get().pushToast(
+        'info',
+        get().lang === 'ar'
+          ? id
+            ? 'تم حذف الكتاب نهائياً'
+            : 'تم إفراغ سلة المحذوفات بالكامل'
+          : id
+          ? 'Book permanently deleted'
+          : 'Trash emptied permanently'
+      );
+    } catch (err: any) {
+      get().pushToast('error', String(err?.message || err));
+    }
   },
 
   borrowCopy: async (bookId, borrower) => {
-    const book = await invokeRaff<Book>('borrow_copy', { bookId, borrower });
-    await get().refreshCore();
-    get().pushToast(`تم تسجيل إعارة "${book.title}" بنجاح`);
-    return book;
+    try {
+      const updated = await invokeRaff<Book>('borrow_copy', { bookId, borrower });
+      await get().hydrateAll();
+      set({
+        borrowingBook: null,
+        inspectedBook: get().inspectedBook?.id === bookId ? updated : get().inspectedBook,
+      });
+      get().pushToast(
+        'success',
+        get().lang === 'ar'
+          ? `تم تسجيل الإعارة إلى ${borrower.borrowerName}`
+          : `Loan recorded for ${borrower.borrowerName}`
+      );
+    } catch (err: any) {
+      get().pushToast('error', String(err?.message || err));
+    }
   },
 
   returnLoan: async (bookId, loanId) => {
-    const book = await invokeRaff<Book>('return_loan', { bookId, loanId });
-    await get().refreshCore();
-    get().pushToast(`تم تسجيل إرجاع "${book.title}"`);
-    return book;
+    try {
+      const updated = await invokeRaff<Book>('return_loan', { bookId, loanId });
+      await get().hydrateAll();
+      set({
+        returningBook: null,
+        inspectedBook: get().inspectedBook?.id === bookId ? updated : get().inspectedBook,
+      });
+      get().pushToast(
+        'success',
+        get().lang === 'ar' ? 'تم تسجيل إرجاع الإعارة بنجاح' : 'Loan returned successfully'
+      );
+    } catch (err: any) {
+      get().pushToast('error', String(err?.message || err));
+    }
   },
 
   returnLoanParts: async (bookId, loanId, volumes) => {
-    const book = await invokeRaff<Book>('return_loan_parts', {
-      bookId,
-      loanId,
-      volumes,
-    });
-    await get().refreshCore();
-    get().pushToast(`تم تسجيل إرجاع الأجزاء المحددة من "${book.title}"`);
-    return book;
+    try {
+      const updated = await invokeRaff<Book>('return_loan_parts', { bookId, loanId, volumes });
+      await get().hydrateAll();
+      set({
+        returningBook: null,
+        inspectedBook: get().inspectedBook?.id === bookId ? updated : get().inspectedBook,
+      });
+      get().pushToast(
+        'success',
+        get().lang === 'ar'
+          ? `تم إرجاع الأجزاء (${volumes.join('، ')}) بنجاح`
+          : `Returned volumes (${volumes.join(', ')})`
+      );
+    } catch (err: any) {
+      get().pushToast('error', String(err?.message || err));
+    }
   },
 
-  bulkUpdateBooks: async (bookIds, patch) => {
-    const res = await invokeRaff<{ updated: number }>('bulk_update', {
-      bookIds,
-      patch,
-    });
-    await get().refreshCore();
-    get().pushToast(`تم تحديث ${res?.updated || bookIds.length} كتاب بنجاح`);
-  },
-
-  loadLoansCenter: async (filter) => {
-    const nextFilter = filter ?? get().loanFilter;
-    set({ loanFilter: nextFilter });
-    const loans = await invokeRaff<LoanCenterItem[]>('get_loan_center', {
-      filter: nextFilter,
-    });
-    set({ loans });
+  bulkUpdateBooks: async (patch) => {
+    try {
+      const ids = get().selectedBookIds;
+      if (ids.length === 0) return;
+      await invokeRaff('bulk_update', { bookIds: ids, patch });
+      await get().hydrateAll();
+      set({ bulkModalOpen: false, selectedBookIds: [] });
+      get().pushToast(
+        'success',
+        get().lang === 'ar'
+          ? `تم تحديث ${ids.length} كتاب دفعة واحدة`
+          : `Updated ${ids.length} books in bulk`
+      );
+    } catch (err: any) {
+      get().pushToast('error', String(err?.message || err));
+    }
   },
 
   updateSettings: async (patch) => {
-    const settings = await invokeRaff<Settings>('update_settings', { patch });
-    set({ settings });
-    get().pushToast('تم حفظ الإعدادات');
+    try {
+      const settings = await invokeRaff<Settings>('update_settings', { patch });
+      set({ settings });
+      get().pushToast(
+        'success',
+        get().lang === 'ar' ? 'تم حفظ الإعدادات' : 'Settings saved'
+      );
+    } catch (err: any) {
+      get().pushToast('error', String(err?.message || err));
+    }
+  },
+
+  applyLoanDurationToOpenLoans: async (days) => {
+    try {
+      const durationDays = days ?? get().settings.loanDurationDays;
+      const res = await invokeRaff<{ updated?: number; updatedLoans?: number }>(
+        'apply_loan_duration_to_open_loans',
+        {
+          durationDays,
+        }
+      );
+      const count = res?.updated ?? res?.updatedLoans ?? 0;
+      await get().hydrateAll();
+      get().pushToast(
+        'success',
+        get().lang === 'ar'
+          ? `تم تطبيق مدة الإعارة (${durationDays} يوماً) على الإعارات القائمة (${count})`
+          : `Applied ${durationDays}-day loan duration to open loans (${count})`
+      );
+    } catch (err: any) {
+      get().pushToast('error', String(err?.message || err));
+    }
+  },
+
+  saveCurrentFilter: async (name) => {
+    const s = get();
+    const nextFilters = [
+      ...(s.settings.savedFilters || []),
+      {
+        id: `flt-${Date.now()}`,
+        name,
+        query: s.searchQuery,
+        field: s.searchField,
+        status: s.statusFilter,
+        sort: s.sortBy,
+      },
+    ];
+    await s.updateSettings({ savedFilters: nextFilters });
+  },
+
+  deleteSavedFilter: async (id) => {
+    const s = get();
+    const nextFilters = (s.settings.savedFilters || []).filter((f) => f.id !== id);
+    await s.updateSettings({ savedFilters: nextFilters });
+  },
+
+  createManualBackup: async () => {
+    try {
+      const info = await invokeRaff<BackupInfo>('create_backup', { reason: 'manual' });
+      const backups = await invokeRaff<BackupInfo[]>('list_backups');
+      set({ backups: backups || [] });
+      get().pushToast(
+        'success',
+        get().lang === 'ar'
+          ? `تم إنشاء نسخة احتياطية: ${info.name}`
+          : `Backup created: ${info.name}`
+      );
+    } catch (err: any) {
+      get().pushToast('error', String(err?.message || err));
+    }
+  },
+
+  restoreBackupFile: async (filePath) => {
+    try {
+      await invokeRaff('restore_backup_file', { filePath });
+      await get().hydrateAll();
+      get().pushToast(
+        'success',
+        get().lang === 'ar'
+          ? 'تمت استعادة النسخة الاحتياطية بنجاح'
+          : 'Backup restored successfully'
+      );
+    } catch (err: any) {
+      get().pushToast('error', String(err?.message || err));
+    }
+  },
+
+  importJsonData: async (content, mode) => {
+    try {
+      const res = await invokeRaff<any>('import_json', { content, mode });
+      await get().hydrateAll();
+      if (mode === 'replace') {
+        get().pushToast(
+          'success',
+          get().lang === 'ar'
+            ? `تمت استعادة النسخة الكاملة بنجاح (${res?.total ?? 0} كتاب)`
+            : `Full library restored (${res?.total ?? 0} books)`
+        );
+      } else {
+        get().pushToast(
+          'success',
+          get().lang === 'ar'
+            ? `تم الدمج: أُضيف ${res?.added ?? 0} كتاب، وتُخطي ${res?.skipped ?? 0} مكرر`
+            : `Merged: ${res?.added ?? 0} added, ${res?.skipped ?? 0} skipped`
+        );
+      }
+    } catch (err: any) {
+      get().pushToast('error', String(err?.message || err));
+    }
+  },
+
+  resetAllData: async () => {
+    try {
+      await invokeRaff('reset_all');
+      await get().hydrateAll();
+      get().pushToast(
+        'info',
+        get().lang === 'ar'
+          ? 'تم حذف جميع بيانات المكتبة وتصفير الفهرس مع حفظ نسخة احتياطية تلقائية'
+          : 'All library data has been reset (automatic backup preserved)'
+      );
+    } catch (err: any) {
+      get().pushToast('error', String(err?.message || err));
+    }
   },
 
   runIntegrityCheck: async () => {
-    const integrity = await invokeRaff<IntegrityReport>('integrity_check');
-    set({ integrity });
-    if (integrity.ok) {
-      get().pushToast(`فحص السلامة سليم 100% (${integrity.totalBooks} كتاب)`);
-    } else {
-      get().pushToast(`تم رصد ${integrity.issueCount} ملاحظة في فحص السلامة`, 'info');
+    try {
+      const report = await invokeRaff<IntegrityReport>('integrity_check');
+      set({ integrity: report });
+      get().pushToast(
+        report.ok ? 'success' : 'warning',
+        get().lang === 'ar'
+          ? report.ok
+            ? `فحص السلامة مكتمل: ${report.totalBooks} كتاب بدون أي تعارض`
+            : `تم رصد ${report.issueCount} ملاحظة في قاعدة البيانات`
+          : report.ok
+          ? `Integrity verified: ${report.totalBooks} books with zero conflicts`
+          : `Detected ${report.issueCount} database integrity issues`
+      );
+    } catch (err: any) {
+      get().pushToast('error', String(err?.message || err));
     }
-    return integrity;
   },
 
-  runIntegrityRepair: async () => {
-    const res = await invokeRaff<{ repaired: number; after: IntegrityReport }>(
-      'repair_integrity'
-    );
-    set({ integrity: res.after });
-    await get().refreshCore();
-    get().pushToast(`تم إصلاح ${res.repaired} مشكلة بعد حفظ نسخة احتياطية آمنة`);
+  repairIntegrity: async () => {
+    try {
+      const res = await invokeRaff<{ repaired: number; after: IntegrityReport }>('repair_integrity');
+      set({ integrity: res.after });
+      await get().hydrateAll();
+      get().pushToast(
+        'success',
+        get().lang === 'ar'
+          ? `تم إصلاح ${res.repaired} مشكلة بنجاح`
+          : `Repaired ${res.repaired} issues successfully`
+      );
+    } catch (err: any) {
+      get().pushToast('error', String(err?.message || err));
+    }
   },
 
-  createBackup: async (reason = 'manual') => {
-    await invokeRaff('create_backup', { reason });
-    const backups = await invokeRaff<BackupInfo[]>('list_backups');
-    set({ backups });
-    get().pushToast('تم إنشاء نسخة احتياطية فورية بنجاح');
+  exportLibrary: async (format) => {
+    const res = await invokeRaff<{ content?: string }>('export_data', { format });
+    return res?.content || '';
   },
 
   loginAdmin: async (password) => {
-    const res = await invokeRaff<{ ok: boolean; error?: string; state?: AuthState }>(
-      'auth_login',
-      { password }
-    );
+    const res = await invokeRaff<{ ok: boolean; error?: string; state: AuthState }>('auth_login', {
+      password,
+    });
     if (res.ok) {
-      set({ showLoginModal: false });
+      set({ auth: res.state, adminLoginModalOpen: false, activeTab: 'overview' });
       await get().hydrateAll();
-      get().pushToast('تم فتح وضع الإدارة بنجاح');
+      get().pushToast(
+        'success',
+        get().lang === 'ar' ? 'تم فتح وضع الإدارة' : 'Admin Mode unlocked'
+      );
       return true;
-    } else {
-      if (res.state) set({ auth: res.state });
-      get().pushToast(res.error || 'كلمة المرور غير صحيحة', 'error');
+    }
+    set({ auth: res.state });
+    get().pushToast('error', res.error || (get().lang === 'ar' ? 'كلمة المرور غير صحيحة' : 'Invalid password'));
+    return false;
+  },
+
+  recoverAdminPassword: async (answer, newPassword) => {
+    try {
+      const state = await invokeRaff<AuthState>('auth_recover', { answer, newPassword });
+      set({ auth: state, adminLoginModalOpen: false, activeTab: 'overview' });
+      await get().hydrateAll();
+      get().pushToast(
+        'success',
+        get().lang === 'ar'
+          ? 'تمت استعادة كلمة المرور وفتح وضع الإدارة'
+          : 'Password reset and Admin Mode unlocked'
+      );
+      return true;
+    } catch (err: any) {
+      get().pushToast('error', String(err?.message || err));
       return false;
     }
   },
 
   logoutToPublic: async () => {
-    const auth = await invokeRaff<AuthState>('auth_logout_to_public');
-    set({ auth, activeTab: 'discover' });
+    const { auth, lang } = get();
+    if (!auth?.enabled) {
+      // User clicked "Switch to Public Browse Mode" before setting an admin password!
+      // Guide them directly to Settings -> Security and focus the password input.
+      get().openSettingsTab('security', true);
+      get().pushToast(
+        'info',
+        lang === 'ar'
+          ? 'لتفعيل وضع التصفح العام، يرجى تعيين كلمة مرور للإدارة أولاً من هذه الصفحة'
+          : 'To enable Public Browse Mode, please set an Admin password first'
+      );
+      return;
+    }
+    const state = await invokeRaff<AuthState>('auth_logout_to_public');
+    set({
+      auth: state,
+      activeTab: 'discover',
+      inspectedBook: null,
+      editingBook: null,
+      borrowingBook: null,
+      returningBook: null,
+    });
     await get().hydrateAll();
-    get().pushToast('تم التحويل إلى وضع التصفح العام (Kiosk Mode)', 'info');
+    get().pushToast(
+      'info',
+      lang === 'ar'
+        ? 'تم التفعيل: وضع التصفح العام للقراءة والبحث فقط'
+        : 'Switched to Public Browse Mode (Read-Only)'
+    );
   },
 
-  setupSecurity: async (payload) => {
-    const auth = await invokeRaff<AuthState>('auth_setup', payload);
-    set({ auth });
-    get().pushToast('تم تفعيل حماية المسؤول بنجاح');
+  setupAdminAuth: async (password, recoveryQuestion, recoveryAnswer, publicModeEnabled = true) => {
+    try {
+      const state = await invokeRaff<AuthState>('auth_setup', {
+        password,
+        recoveryQuestion,
+        recoveryAnswer,
+        publicModeEnabled,
+      });
+      set({ auth: state });
+      get().pushToast(
+        'success',
+        get().lang === 'ar'
+          ? 'تم تفعيل حماية المسؤول بنجاح — يمكنك الآن التحويل لوضع التصفح العام في أي وقت'
+          : 'Admin protection enabled — you can now switch to Public Browse Mode anytime'
+      );
+    } catch (err: any) {
+      get().pushToast('error', String(err?.message || err));
+    }
   },
 
-  disableSecurity: async () => {
-    const auth = await invokeRaff<AuthState>('auth_disable', {});
-    set({ auth });
-    get().pushToast('تم إيقاف قفل الإدارة');
+  updateAdminCredentials: async (newPassword, recoveryQuestion, recoveryAnswer) => {
+    try {
+      const state = await invokeRaff<AuthState>('auth_update_credentials', {
+        newPassword,
+        recoveryQuestion,
+        recoveryAnswer,
+      });
+      set({ auth: state });
+      get().pushToast(
+        'success',
+        get().lang === 'ar' ? 'تم تحديث بيانات الأمان والاسترداد' : 'Security credentials updated'
+      );
+    } catch (err: any) {
+      get().pushToast('error', String(err?.message || err));
+    }
+  },
+
+  setPublicModePreference: async (enabled) => {
+    try {
+      const state = await invokeRaff<AuthState>('auth_set_public_mode', { enabled });
+      set({ auth: state });
+      get().pushToast(
+        'success',
+        get().lang === 'ar'
+          ? enabled
+            ? 'سيبدأ البرنامج دائماً في وضع التصفح العام'
+            : 'سيبدأ البرنامج في وضع الإدارة'
+          : enabled
+          ? 'Application will start in Public Browse Mode'
+          : 'Application will start in Admin Mode'
+      );
+    } catch (err: any) {
+      get().pushToast('error', String(err?.message || err));
+    }
+  },
+
+  disableAdminAuth: async () => {
+    const state = await invokeRaff<AuthState>('auth_disable');
+    set({ auth: state });
+    get().pushToast(
+      'info',
+      get().lang === 'ar' ? 'تم تعطيل قفل كلمة المرور' : 'Admin password protection disabled'
+    );
+  },
+
+  checkUpdatesNow: async () => {
+    try {
+      const updater = await invokeRaff<UpdaterState>('updater_check_now');
+      set({ updater });
+      get().pushToast(
+        'success',
+        get().lang === 'ar'
+          ? 'تم فحص التحديثات: أنت تستخدم أحدث إصدار من رَفّ (4.0.0)'
+          : 'Checked for updates: RAFF 4.0.0 is up to date'
+      );
+    } catch (err: any) {
+      get().pushToast('error', String(err?.message || err));
+    }
+  },
+
+  setAutoUpdatePreference: async (autoCheck) => {
+    try {
+      const updater = await invokeRaff<UpdaterState>('updater_set_preferences', { autoCheck });
+      set({ updater });
+      get().pushToast(
+        'success',
+        get().lang === 'ar'
+          ? autoCheck
+            ? 'تم تفعيل الفحص التلقائي للتحديثات'
+            : 'تم إيقاف الفحص التلقائي للتحديثات'
+          : autoCheck
+          ? 'Automatic update check enabled'
+          : 'Automatic update check disabled'
+      );
+    } catch (err: any) {
+      get().pushToast('error', String(err?.message || err));
+    }
+  },
+
+  pushToast: (type, text) => {
+    const id = `t-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    set((s) => ({ toasts: [...s.toasts, { id, type, text }] }));
+    setTimeout(() => {
+      get().dismissToast(id);
+    }, 3800);
+  },
+
+  dismissToast: (id) => {
+    set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }));
   },
 }));

@@ -2,229 +2,509 @@ import React, { useEffect } from 'react';
 import { useRaffStore } from './store/useRaffStore';
 import { translations } from './i18n/translations';
 import { Icon } from './components/Icons';
+import { NavTab } from './types';
 import { OverviewView } from './views/OverviewView';
-import { DiscoverCatalogueView } from './views/DiscoverCatalogueView';
+import { DiscoverView, CatalogueView } from './views/DiscoverCatalogueView';
 import { BookFormView } from './views/BookFormView';
 import { LoansView } from './views/LoansView';
 import { ScannerLabelsView } from './views/ScannerLabelsView';
 import { AnalyticsView, SettingsView } from './views/AnalyticsSettingsView';
-import { AdminLoginModal, BookDetailModal, PrintCenterModal } from './components/Modals';
-import { NavTab } from './types';
+import {
+  AdminLoginModal,
+  BookInspectorModal,
+  BorrowModal,
+  BulkUpdateModal,
+  EditBookModal,
+  LabelPreviewModal,
+  ReturnLoanModal,
+} from './components/Modals';
+import { cleanReferenceText } from './lib/domain';
+import {
+  windowClose,
+  windowMinimize,
+  windowStartDragging,
+  windowToggleMaximize,
+} from './lib/ipc';
+import './styles/vertix-raff.css';
 
-export const App: React.FC = () => {
-  const theme = useRaffStore((s) => s.theme);
-  const themeTransitioning = useRaffStore((s) => s.themeTransitioning);
-  const lang = useRaffStore((s) => s.lang);
-  const activeTab = useRaffStore((s) => s.activeTab);
-  const searchQuery = useRaffStore((s) => s.searchQuery);
-  const auth = useRaffStore((s) => s.auth);
-  const settings = useRaffStore((s) => s.settings);
-  const toasts = useRaffStore((s) => s.toasts);
+export function App() {
+  const {
+    theme,
+    lang,
+    activeTab,
+    settingsTab,
+    sidebarExpanded,
+    isTransitioningTheme,
+    books,
+    stats,
+    loans,
+    trash,
+    settings,
+    auth,
+    searchQuery,
+    toasts,
+    hydrateAll,
+    toggleTheme,
+    toggleLang,
+    setActiveTab,
+    openSettingsTab,
+    toggleSidebar,
+    setSearchQuery,
+    setInspectedBook,
+    setAdminLoginModalOpen,
+    logoutToPublic,
+    runIntegrityCheck,
+    dismissToast,
+    pushToast,
+  } = useRaffStore();
 
-  const hydrateAll = useRaffStore((s) => s.hydrateAll);
-  const toggleThemeWithWipe = useRaffStore((s) => s.toggleThemeWithWipe);
-  const setLang = useRaffStore((s) => s.setLang);
-  const setActiveTab = useRaffStore((s) => s.setActiveTab);
-  const setSearchQuery = useRaffStore((s) => s.setSearchQuery);
-  const setShowLoginModal = useRaffStore((s) => s.setShowLoginModal);
-  const logoutToPublic = useRaffStore((s) => s.logoutToPublic);
-  const runIntegrityCheck = useRaffStore((s) => s.runIntegrityCheck);
+  const t = translations[lang];
+  const isAdmin = !auth?.enabled || (auth?.unlocked && auth?.mode === 'admin');
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    document.documentElement.lang = lang;
-    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+    document.documentElement.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
+    document.documentElement.setAttribute('lang', lang);
     hydrateAll();
   }, []);
 
-  const isAdmin = !auth || auth.mode === 'admin';
-  const t = translations[lang];
+  // Global keyboard shortcuts & hardware barcode wedge listener
+  useEffect(() => {
+    let buffer = '';
+    let lastTime = 0;
 
-  const navItems: { id: NavTab; label: string; icon: React.ReactNode; adminOnly?: boolean }[] = [
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isInput =
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable);
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        const searchInput = document.getElementById('global-quick-search') as HTMLInputElement | null;
+        searchInput?.focus();
+        return;
+      }
+
+      if (isInput) return;
+
+      const now = performance.now();
+      const gapLimit = Math.max(20, settings.scannerGapMs || 35);
+
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        if (buffer.length >= 4 && now - lastTime <= gapLimit * 3) {
+          e.preventDefault();
+          const code = cleanReferenceText(buffer);
+          buffer = '';
+          const matched = useRaffStore
+            .getState()
+            .books.find((b) => b.referenceNumber.toLowerCase() === code.toLowerCase());
+          if (matched) {
+            setInspectedBook(matched);
+            pushToast(
+              'success',
+              lang === 'ar'
+                ? `تم التقاط الباركود: ${matched.title}`
+                : `Scanned barcode: ${matched.title}`
+            );
+          } else {
+            setSearchQuery(code);
+            setActiveTab('discover');
+            pushToast(
+              'info',
+              lang === 'ar' ? `بحث بالباركود: ${code}` : `Barcode search: ${code}`
+            );
+          }
+        }
+        buffer = '';
+        return;
+      }
+
+      if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        if (now - lastTime > gapLimit * 2.5) {
+          buffer = e.key;
+        } else {
+          buffer += e.key;
+        }
+        lastTime = now;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [settings.scannerGapMs, lang]);
+
+  const activeLoansCount = loans.filter((l) => l.active).length;
+  const overdueCount = stats?.overdueLoans || 0;
+
+  const navItems: {
+    id: NavTab;
+    label: string;
+    icon: React.ReactNode;
+    adminOnly?: boolean;
+    badge?: string | number | null;
+    badgeAlert?: boolean;
+  }[] = [
     { id: 'overview', label: t.navOverview, icon: <Icon.Grid />, adminOnly: true },
-    { id: 'discover', label: t.navDiscover, icon: <Icon.Search /> },
-    { id: 'catalogue', label: t.navCatalogue, icon: <Icon.Book /> },
+    {
+      id: 'discover',
+      label: t.navDiscover,
+      icon: <Icon.Search />,
+      badge: books.length > 0 ? books.length : null,
+    },
+    {
+      id: 'catalogue',
+      label: t.navCatalogue,
+      icon: <Icon.Book />,
+      badge: books.length > 0 ? books.length : null,
+    },
     { id: 'add', label: t.navAdd, icon: <Icon.Plus />, adminOnly: true },
-    { id: 'loans', label: t.navLoans, icon: <Icon.Users />, adminOnly: true },
+    {
+      id: 'loans',
+      label: t.navLoans,
+      icon: <Icon.Users />,
+      adminOnly: true,
+      badge: overdueCount > 0 ? overdueCount : activeLoansCount > 0 ? activeLoansCount : null,
+      badgeAlert: overdueCount > 0,
+    },
     { id: 'scanner', label: t.navScanner, icon: <Icon.Barcode />, adminOnly: true },
     { id: 'analytics', label: t.navAnalytics, icon: <Icon.Chart />, adminOnly: true },
-    { id: 'settings', label: t.navSettings, icon: <Icon.Settings />, adminOnly: true },
+    {
+      id: 'settings',
+      label: t.navSettings,
+      icon: <Icon.Settings />,
+      adminOnly: true,
+      badge: trash.length > 0 ? trash.length : null,
+    },
   ];
 
-  const visibleNav = navItems.filter((item) => !item.adminOnly || isAdmin);
+  const visibleTabs = navItems.filter((item) => !item.adminOnly || isAdmin);
+  const effectiveTab: NavTab =
+    !isAdmin && !['discover', 'catalogue'].includes(activeTab) ? 'discover' : activeTab;
+
+  const logoSrc = settings.logo && settings.logo.trim().length > 0
+    ? settings.logo
+    : './assets/logo-256.png';
+
+  const handleTitlebarMouseDown = (e: React.MouseEvent<HTMLElement>) => {
+    const target = e.target as HTMLElement;
+    if (
+      target.closest('button') ||
+      target.closest('input') ||
+      target.closest('.brand-cluster') ||
+      target.closest('.global-search-bar')
+    ) {
+      return;
+    }
+    windowStartDragging();
+  };
 
   return (
     <div className="vertix-shell">
-      {/* Diagonal Theme Wipe Animation Layer */}
-      {themeTransitioning && <div className="theme-wipe-overlay" />}
+      {isTransitioningTheme && <div className="theme-pulse-ring" />}
 
-      {/* Top Floating Pill Navigation Bar */}
-      <header className="vertix-topbar">
-        <div
-          className="brand-cluster"
-          onClick={() => setActiveTab(isAdmin ? 'overview' : 'discover')}
-        >
-          <div className="brand-orb">ر</div>
-          <div className="brand-titles">
-            <span className="brand-name">
-              {settings?.institutionName || t.brandName}
-            </span>
-            <span className="brand-sub">{t.brandSubtitle}</span>
-          </div>
-        </div>
-
-        <nav className="nav-pill-group">
-          {visibleNav.map((item) => (
-            <button
-              key={item.id}
-              className={`nav-pill-btn ${activeTab === item.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(item.id)}
-            >
-              {item.icon}
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </nav>
-
-        <div className="topbar-actions">
-          <div className="search-pill-box">
-            <Icon.Search />
-            <input
-              type="text"
-              placeholder={t.searchPlaceholder}
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                if (activeTab !== 'discover' && activeTab !== 'catalogue') {
-                  setActiveTab('discover');
-                }
-              }}
-            />
-          </div>
-
+      {/* Custom Frameless Desktop Titlebar */}
+      <header
+        className="custom-titlebar"
+        data-tauri-drag-region
+        onMouseDown={handleTitlebarMouseDown}
+        onDoubleClick={(e) => {
+          const target = e.target as HTMLElement;
+          if (!target.closest('button') && !target.closest('input')) {
+            windowToggleMaximize();
+          }
+        }}
+      >
+        {/* Start: Sidebar Toggle + Official RAFF Logo & Institution Name */}
+        <div className="titlebar-start">
           <button
-            className="icon-circle-btn"
-            title="تبديل اللغة والاتجاه (RTL / LTR)"
-            onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')}
+            className="win-ctrl-btn"
+            onClick={toggleSidebar}
+            title={sidebarExpanded ? t.sidebarCollapse : t.sidebarExpand}
+            style={{ width: 32, height: 32 }}
           >
-            <Icon.Globe />
+            <Icon.SidebarToggle />
           </button>
 
           <div
-            className="profile-pill"
-            onClick={() => {
-              if (!isAdmin) {
-                setShowLoginModal(true);
-              } else if (auth?.enabled) {
-                logoutToPublic();
-              } else {
-                setActiveTab('settings');
-              }
-            }}
+            className="brand-cluster"
+            onClick={() => setActiveTab(isAdmin ? 'overview' : 'discover')}
+            title={t.brandSubtitle}
           >
-            <div className="profile-avatar">{isAdmin ? 'م' : 'ع'}</div>
-            <div className="profile-meta">
-              <span className="profile-name">
-                {isAdmin ? t.modeAdmin : t.modePublic}
-              </span>
-              <span className="profile-role">
-                {!isAdmin
-                  ? t.unlockAdmin
-                  : auth?.enabled
-                  ? t.lockToPublic
-                  : 'SQLite 4.0'}
-              </span>
+            <img
+              src={logoSrc}
+              alt="RAFF Logo"
+              className="brand-logo-img"
+              onError={(e) => {
+                const img = e.currentTarget;
+                if (!img.src.includes('icon-256.png')) {
+                  img.src = './assets/icon-256.png';
+                }
+              }}
+            />
+            <div className="brand-titles">
+              <h1>{settings.institutionName || t.brandName}</h1>
+              <span>{t.brandSubtitle}</span>
             </div>
+          </div>
+        </div>
+
+        {/* Center: Instant Global Search Bar */}
+        <div className="titlebar-center">
+          <div className="global-search-bar">
+            <Icon.Search style={{ color: 'var(--text-muted)', flexShrink: 0, width: 15, height: 15 }} />
+            <input
+              id="global-quick-search"
+              type="text"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                if (effectiveTab !== 'discover' && effectiveTab !== 'catalogue') {
+                  setActiveTab('discover');
+                }
+              }}
+              placeholder={t.searchPlaceholder}
+            />
+            {searchQuery ? (
+              <button
+                onClick={() => setSearchQuery('')}
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  fontWeight: 700,
+                }}
+                title={lang === 'ar' ? 'مسح البحث' : 'Clear search'}
+              >
+                ✕
+              </button>
+            ) : (
+              <span className="search-kbd">Ctrl+K</span>
+            )}
+          </div>
+        </div>
+
+        {/* End: Clear Language Switcher, Theme Reveal Orb, Mode Switch & Custom Window Controls */}
+        <div className="titlebar-end">
+          {/* Explicit Bilingual Switcher Pill */}
+          <button
+            className="lang-switch-pill"
+            onClick={toggleLang}
+            title={
+              lang === 'ar'
+                ? 'Switch Interface Language to English'
+                : 'تبديل لغة الواجهة إلى العربية'
+            }
+          >
+            <Icon.Globe />
+            <span className="lang-active-tag">{lang === 'ar' ? 'عربي' : 'EN'}</span>
+            <span style={{ color: 'var(--text-secondary)' }}>⇄ {t.langSwitchLabel}</span>
+          </button>
+
+          {/* Circular View-Transition Theme Button */}
+          <button
+            className="theme-toggle-orb"
+            onClick={(e) => toggleTheme(e)}
+            title={theme === 'light' ? t.themeDark : t.themeLight}
+            aria-label="Toggle Theme"
+          >
+            {theme === 'light' ? <Icon.Moon /> : <Icon.Sun />}
+          </button>
+
+          {/* Public Browse Mode / Admin Unlock Pill */}
+          {isAdmin ? (
+            <button
+              className="mode-switch-pill"
+              onClick={logoutToPublic}
+              title={
+                auth?.enabled
+                  ? t.lockToPublic
+                  : t.setupPasswordFirst
+              }
+            >
+              <Icon.Lock />
+              <span>{t.lockToPublic}</span>
+            </button>
+          ) : (
+            <button
+              className="mode-switch-pill public-active"
+              onClick={() => setAdminLoginModalOpen(true)}
+            >
+              <Icon.Unlock />
+              <span>{t.unlockAdmin}</span>
+            </button>
+          )}
+
+          {/* Custom Desktop Window Controls */}
+          <div className="window-controls-group">
+            <button
+              className="win-ctrl-btn"
+              onClick={windowMinimize}
+              title={t.winMinimize}
+              aria-label={t.winMinimize}
+            >
+              <Icon.Minimize />
+            </button>
+            <button
+              className="win-ctrl-btn"
+              onClick={windowToggleMaximize}
+              title={t.winMaximize}
+              aria-label={t.winMaximize}
+            >
+              <Icon.Maximize />
+            </button>
+            <button
+              className="win-ctrl-btn win-close"
+              onClick={windowClose}
+              title={t.winClose}
+              aria-label={t.winClose}
+            >
+              <Icon.Close />
+            </button>
           </div>
         </div>
       </header>
 
-      {/* Main Workspace: Floating Vertical Side Dock + Active Stage */}
-      <div className="vertix-workspace">
-        {/* Floating Vertical Side Dock (Matches Vertix Screenshots) */}
-        <aside className="vertix-side-dock">
-          {/* Top Pod: Sun / Moon Theme Switcher */}
-          <div className="dock-pill-pod">
-            <button
-              className={`dock-icon-btn ${theme === 'light' ? 'theme-active' : ''}`}
-              title="الوضع النهاري (Light Mode)"
-              onClick={() => theme !== 'light' && toggleThemeWithWipe()}
-            >
-              <Icon.Sun />
-            </button>
-            <button
-              className={`dock-icon-btn ${theme === 'dark' ? 'theme-active' : ''}`}
-              title="الوضع الليلي (Dark Mode)"
-              onClick={() => theme !== 'dark' && toggleThemeWithWipe()}
-            >
-              <Icon.Moon />
-            </button>
+      {/* Main Workspace: Labeled Intelligent Sidebar + Viewport-Fitted Stage */}
+      <div className="workspace-body">
+        <aside className={`intelligent-sidebar ${sidebarExpanded ? 'expanded' : 'collapsed'}`}>
+          <div className="sidebar-nav-list">
+            {visibleTabs.map((item) => {
+              const isActive = effectiveTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  className={`sidebar-nav-item ${isActive ? 'active' : ''}`}
+                  onClick={() => setActiveTab(item.id)}
+                  title={item.label}
+                >
+                  <div className="sidebar-nav-item-main">
+                    {item.icon}
+                    {sidebarExpanded && <span>{item.label}</span>}
+                  </div>
+                  {sidebarExpanded && item.badge !== null && item.badge !== undefined && (
+                    <span className={`sidebar-badge ${item.badgeAlert ? 'alert' : ''}`}>
+                      {Number(item.badge).toLocaleString('en-US')}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
 
-          {/* Middle Pod: Quick Navigation Icons */}
-          <div className="dock-pill-pod">
-            {visibleNav.map((item) => (
-              <button
-                key={item.id}
-                className={`dock-icon-btn ${activeTab === item.id ? 'active' : ''}`}
-                title={item.label}
-                onClick={() => setActiveTab(item.id)}
-              >
-                {item.icon}
-              </button>
-            ))}
-          </div>
-
-          {/* Bottom Pod: Integrity Verification & Security Lock */}
-          <div className="dock-pill-pod">
+          {/* Bottom Sidebar Utility Dock */}
+          <div className="sidebar-footer-dock">
             {isAdmin && (
-              <button
-                className="dock-icon-btn"
-                title="فحص سلامة قاعدة البيانات SQLite"
-                onClick={() => runIntegrityCheck()}
-              >
-                <Icon.Shield />
-              </button>
+              <>
+                <button
+                  className="sidebar-nav-item"
+                  onClick={runIntegrityCheck}
+                  title={t.integrityCheckTitle}
+                >
+                  <div className="sidebar-nav-item-main">
+                    <Icon.Shield />
+                    {sidebarExpanded && <span>{t.integrityCheckTitle}</span>}
+                  </div>
+                </button>
+
+                <button
+                  className={`sidebar-nav-item ${
+                    effectiveTab === 'settings' && settingsTab === 'security' ? 'active' : ''
+                  }`}
+                  onClick={() => openSettingsTab('security', !auth?.enabled)}
+                  title={t.securityAndPermissions}
+                >
+                  <div className="sidebar-nav-item-main">
+                    <Icon.Lock />
+                    {sidebarExpanded && <span>{t.securityAndPermissions}</span>}
+                  </div>
+                  {sidebarExpanded && (
+                    <span
+                      className="sidebar-badge"
+                      style={{
+                        background: auth?.enabled ? 'var(--emerald-bg)' : 'var(--amber-bg)',
+                        color: auth?.enabled ? 'var(--emerald)' : 'var(--amber)',
+                      }}
+                    >
+                      {auth?.enabled
+                        ? lang === 'ar'
+                          ? 'محمي'
+                          : 'ON'
+                        : lang === 'ar'
+                        ? 'مفتوح'
+                        : 'OFF'}
+                    </span>
+                  )}
+                </button>
+              </>
             )}
+
             <button
-              className="dock-icon-btn"
-              title={isAdmin ? 'الأمان والصلاحيات' : 'فتح وضع الإدارة'}
-              onClick={() => {
-                if (!isAdmin) setShowLoginModal(true);
-                else setActiveTab('settings');
-              }}
+              className="sidebar-nav-item"
+              onClick={toggleSidebar}
+              title={sidebarExpanded ? t.sidebarCollapse : t.sidebarExpand}
             >
-              <Icon.Lock />
+              <div className="sidebar-nav-item-main">
+                <Icon.SidebarToggle />
+                {sidebarExpanded && (
+                  <span>{sidebarExpanded ? t.sidebarCollapse : t.sidebarExpand}</span>
+                )}
+              </div>
             </button>
           </div>
         </aside>
 
-        {/* Active Stage */}
-        <main className="vertix-stage" key={activeTab}>
-          {activeTab === 'overview' && isAdmin && <OverviewView />}
-          {activeTab === 'discover' && <DiscoverCatalogueView mode="discover" />}
-          {activeTab === 'catalogue' && <DiscoverCatalogueView mode="catalogue" />}
-          {activeTab === 'add' && isAdmin && <BookFormView />}
-          {activeTab === 'loans' && isAdmin && <LoansView />}
-          {activeTab === 'scanner' && isAdmin && <ScannerLabelsView />}
-          {activeTab === 'analytics' && isAdmin && <AnalyticsView />}
-          {activeTab === 'settings' && isAdmin && <SettingsView />}
+        {/* 100vh Viewport-Fitted Stage */}
+        <main className="vertix-stage">
+          {effectiveTab === 'overview' && isAdmin && <OverviewView />}
+          {effectiveTab === 'discover' && <DiscoverView />}
+          {effectiveTab === 'catalogue' && <CatalogueView />}
+          {effectiveTab === 'add' && isAdmin && <BookFormView />}
+          {effectiveTab === 'loans' && isAdmin && <LoansView />}
+          {effectiveTab === 'scanner' && isAdmin && <ScannerLabelsView />}
+          {effectiveTab === 'analytics' && isAdmin && <AnalyticsView />}
+          {effectiveTab === 'settings' && isAdmin && <SettingsView />}
         </main>
       </div>
 
-      {/* Modals & Toasts */}
-      <BookDetailModal />
+      {/* Modals */}
+      <BookInspectorModal />
+      <EditBookModal />
+      <BorrowModal />
+      <ReturnLoanModal />
+      <BulkUpdateModal />
+      <LabelPreviewModal />
       <AdminLoginModal />
-      <PrintCenterModal />
 
-      <div className="toast-stack">
-        {toasts.map((toast) => (
-          <div key={toast.id} className={`toast-pill ${toast.type}`}>
-            <Icon.Check />
-            <span>{toast.message}</span>
-          </div>
-        ))}
-      </div>
+      {/* Toast Stack */}
+      {toasts.length > 0 && (
+        <div className="toast-stack">
+          {toasts.map((toast) => (
+            <div
+              key={toast.id}
+              className="toast-item"
+              onClick={() => dismissToast(toast.id)}
+              style={{
+                borderInlineStartColor:
+                  toast.type === 'error'
+                    ? 'var(--crimson)'
+                    : toast.type === 'warning'
+                    ? 'var(--amber)'
+                    : toast.type === 'success'
+                    ? 'var(--emerald)'
+                    : 'var(--brand-accent)',
+              }}
+            >
+              {toast.text}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
-};
+}

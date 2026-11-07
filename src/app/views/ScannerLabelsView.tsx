@@ -1,354 +1,447 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { useRaffStore } from '../store/useRaffStore';
-import { Icon } from '../components/Icons';
 import {
+  cleanReferenceText,
   computeBookAvailability,
   LABEL_FIT_SCRIPT,
-  referenceIdentity,
   renderBarcodeSVG,
 } from '../lib/domain';
-import { Book } from '../types';
+import { Icon } from '../components/Icons';
 
-export const ScannerLabelsView: React.FC = () => {
-  const books = useRaffStore((s) => s.books);
-  const meta = useRaffStore((s) => s.meta);
-  const settings = useRaffStore((s) => s.settings);
-  const setSelectedBookId = useRaffStore((s) => s.setSelectedBookId);
-  const openPrintCenter = useRaffStore((s) => s.openPrintCenter);
-  const pushToast = useRaffStore((s) => s.pushToast);
+export function ScannerLabelsView() {
+  const {
+    lang,
+    books,
+    settings,
+    setInspectedBook,
+    setBorrowingBook,
+    setReturningBook,
+    updateSettings,
+    pushToast,
+  } = useRaffStore();
+  const isAr = lang === 'ar';
 
   const [scanInput, setScanInput] = useState('');
-  const [scannedBook, setScannedBook] = useState<Book | null>(null);
-  const [labelScope, setLabelScope] = useState<'all' | 'category' | 'shelf'>('all');
-  const [chosenCategory, setChosenCategory] = useState('');
-  const [chosenShelf, setChosenShelf] = useState('');
-  const [cols, setCols] = useState<3 | 4 | 5>(settings?.labelColumns || 4);
+  const [scanAction, setScanAction] = useState<'inspect' | 'borrow' | 'return'>('inspect');
+  const [selectedForPrint, setSelectedForPrint] = useState<string[]>(
+    books.slice(0, 8).map((b) => b.id)
+  );
+  const [searchPrint, setSearchPrint] = useState('');
 
-  const bufferRef = useRef('');
-  const lastKeyTimeRef = useRef(0);
-
-  const lookupByRef = (rawCode: string) => {
-    const idKey = referenceIdentity(rawCode);
-    if (!idKey) return;
-    const found = books.find((b) => referenceIdentity(b.referenceNumber) === idKey);
-    if (found) {
-      setScannedBook(found);
-      pushToast(`تم التعرف على الباركود: ${found.title} (${found.referenceNumber})`);
-    } else {
-      pushToast(`لم يتم العثور على كتاب بالرقم المرجعي: ${rawCode}`, 'error');
-    }
-  };
-
-  // Global Hardware Wedge Barcode Listener
-  useEffect(() => {
-    const gapLimit = settings?.scannerGapMs || 35;
-    const onKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
-        return;
-      }
-      const now = performance.now();
-      if (now - lastKeyTimeRef.current > gapLimit * 2.5) {
-        bufferRef.current = '';
-      }
-      lastKeyTimeRef.current = now;
-
-      if (e.key === 'Enter' || e.key === 'Tab') {
-        if (bufferRef.current.length >= 3) {
-          e.preventDefault();
-          const code = bufferRef.current;
-          bufferRef.current = '';
-          setScanInput(code);
-          lookupByRef(code);
-        }
-      } else if (e.key.length === 1) {
-        bufferRef.current += e.key;
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [books, settings]);
-
-  const labelsList = useMemo(() => {
-    return books.filter((b) => {
-      if (b.archivedAt) return false;
-      if (labelScope === 'category' && chosenCategory) {
-        return b.category === chosenCategory;
-      }
-      if (labelScope === 'shelf' && chosenShelf) {
-        return b.shelf === chosenShelf;
-      }
-      return true;
-    });
-  }, [books, labelScope, chosenCategory, chosenShelf]);
-
-  const handlePrintStudioSheet = () => {
-    if (labelsList.length === 0) {
-      pushToast('لا توجد كتب مطابقة لطباعة الملصقات', 'info');
+  const handleScanSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleaned = cleanReferenceText(scanInput);
+    if (!cleaned) return;
+    const found = books.find(
+      (b) => b.referenceNumber.toLowerCase() === cleaned.toLowerCase()
+    );
+    if (!found) {
+      pushToast(
+        'error',
+        isAr
+          ? `لم يتم العثور على كتاب بالرقم المرجعي: ${cleaned}`
+          : `No book found with reference: ${cleaned}`
+      );
       return;
     }
-    const cards = labelsList
-      .map(
-        (b) => `
-      <div class="label-card">
-        <div class="inst" data-fit data-max-pt="7.5" data-min-pt="5" data-max-lines="1">${
-          settings?.institutionName || 'مكتبة رف'
-        }</div>
-        <div class="title" data-fit data-max-pt="9.5" data-min-pt="5.5" data-max-lines="2">${
-          b.title
-        }</div>
-        <div class="svg-wrap">${renderBarcodeSVG(b.referenceNumber, {
-          height: 36,
-          moduleWidth: 1.55,
-        })}</div>
-        <div class="meta">${b.shelf ? `رف: ${b.shelf}` : ''} ${
-          b.price && settings?.labelShowPrice ? `· ${b.price} ر.س` : ''
-        }</div>
-      </div>`
-      )
-      .join('');
 
-    const html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><style>
-      @page { size: A4 portrait; margin: 10mm; }
-      body { font-family: 'IBM Plex Sans Arabic', 'Readex Pro', sans-serif; margin: 0; background: #fff; color: #221913; }
-      .grid { display: grid; grid-template-columns: repeat(${cols}, 1fr); gap: 5mm; }
-      .label-card { border: 1px solid #d9d0c1; border-radius: 8px; padding: 8px; text-align: center; display: flex; flex-direction: column; gap: 4px; align-items: center; break-inside: avoid; }
-      .inst { font-family: 'Readex Pro', sans-serif; font-size: 7pt; color: #544a41; font-weight: 700; width: 100%; }
-      .title { font-family: 'Amiri', 'Readex Pro', serif; font-size: 9pt; font-weight: 700; width: 100%; }
-      .svg-wrap svg { max-width: 100%; height: auto; }
-      .meta { font-size: 7pt; color: #544a41; font-weight: 600; }
-    </style></head><body><div class="grid">${cards}</div>${LABEL_FIT_SCRIPT}</body></html>`;
-
-    openPrintCenter(`استوديو طباعة الملصقات (${labelsList.length} ملصق)`, html);
+    const avail = computeBookAvailability(found);
+    if (scanAction === 'borrow') {
+      if (avail.availableCopies > 0) {
+        setBorrowingBook(found);
+      } else {
+        pushToast(
+          'warning',
+          isAr ? 'جميع نسخ الكتاب مستعارة حالياً' : 'All copies are currently borrowed'
+        );
+      }
+    } else if (scanAction === 'return') {
+      if (avail.activeLoans.length > 0) {
+        setReturningBook({ book: found });
+      } else {
+        pushToast(
+          'info',
+          isAr ? 'لا توجد إعارات نشطة لهذا الكتاب' : 'No active loans for this book'
+        );
+      }
+    } else {
+      setInspectedBook(found);
+    }
+    setScanInput('');
   };
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-      <div className="stage-header-row">
-        <div className="stage-title-group">
-          <div className="stage-title-icon">
-            <Icon.Barcode />
-          </div>
-          <div>
-            <h1 className="stage-title">الماسح الضوئي واستوديو ملصقات الباركود</h1>
-            <p className="stage-subtitle">
-              دعم كامل لقارئات الباركود الليزرية (Code 128B) وطباعة صفحات A4 بمقاسات ذكية
-            </p>
-          </div>
-        </div>
-      </div>
+  const togglePrintBook = (id: string) => {
+    setSelectedForPrint((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
 
-      {/* Live Scanner Box */}
-      <div className="vertix-card" style={{ gap: '16px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <h2 style={{ fontSize: '17px', fontWeight: 800 }}>
-              قارئ الباركود الفوري (Hardware Wedge & Manual)
-            </h2>
-            <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}>
-              امسح الباركود مباشرة بجهاز القارئ في أي وقت، أو أدخل الرقم المرجعي يدوياً:
-            </p>
-          </div>
-          <span className="status-badge available">متصل وجاهز للمسح ({settings?.scannerGapMs || 35}ms)</span>
-        </div>
+  const printSelectedSheet = () => {
+    const chosen = books.filter((b) => selectedForPrint.includes(b.id));
+    if (chosen.length === 0) {
+      pushToast(
+        'warning',
+        isAr ? 'اختر كتاباً واحداً على الأقل للطباعة' : 'Select at least one book to print'
+      );
+      return;
+    }
 
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            lookupByRef(scanInput);
-          }}
-          style={{ display: 'flex', gap: '10px' }}
-        >
-          <input
-            type="text"
-            className="vertix-input"
-            style={{ direction: 'ltr', fontFamily: 'var(--font-mono)', fontSize: '15px' }}
-            placeholder="امسح أو اكتب الرقم المرجعي مثل raf-0001 ثم اضغط Enter..."
-            value={scanInput}
-            onChange={(e) => setScanInput(e.target.value)}
-          />
-          <button type="submit" className="btn-primary-orange">
-            بحث بالباركود
-          </button>
-        </form>
-
-        {scannedBook && (
-          <div
-            style={{
-              background: 'var(--bg-surface-muted)',
-              padding: '18px',
-              borderRadius: '20px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: '16px',
-              border: '1px solid var(--accent-orange)',
-            }}
-          >
-            <div>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <span className="ref-mono-pill">{scannedBook.referenceNumber}</span>
-                <span className={`status-badge ${computeBookAvailability(scannedBook).state}`}>
-                  {computeBookAvailability(scannedBook).state === 'available'
-                    ? 'متاح للإعارة'
-                    : 'مستعار حالياً'}
-                </span>
-              </div>
-              <h3 style={{ fontSize: '18px', fontWeight: 800, marginTop: '8px' }}>
-                {scannedBook.title}
-              </h3>
-              <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                {scannedBook.author} · {scannedBook.publisher} · الرف: {scannedBook.shelf || '—'}
-              </p>
+    const cols = settings.labelColumns || 4;
+    const cardsHtml = chosen
+      .map((b) => {
+        const svg = renderBarcodeSVG(b.referenceNumber, {
+          height: 36,
+          moduleWidth: 1.5,
+          color: '#111111',
+          background: '#ffffff',
+        });
+        return `
+          <div class="label-box">
+            <div class="inst" data-fit data-max-pt="8" data-min-pt="5" data-max-lines="1">${
+              settings.institutionName || 'مكتبة رَفّ'
+            }</div>
+            <div class="title" data-fit data-max-pt="9.5" data-min-pt="5.5" data-max-lines="2">${
+              b.title
+            }</div>
+            <div class="meta">
+              ${settings.labelShowShelf && b.shelf ? `<span>رف: ${b.shelf}</span>` : ''}
+              ${
+                settings.labelShowPrice && b.price
+                  ? `<span>${b.price} ر.س</span>`
+                  : ''
+              }
             </div>
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-              <div
-                className="barcode-preview-plate"
-                dangerouslySetInnerHTML={{
-                  __html: renderBarcodeSVG(scannedBook.referenceNumber, {
-                    height: 38,
-                    moduleWidth: 1.5,
-                  }),
+            <div class="bc">${svg}</div>
+          </div>
+        `;
+      })
+      .join('');
+
+    const html = `<!DOCTYPE html>
+      <html dir="rtl" lang="ar">
+      <head>
+        <meta charset="UTF-8" />
+        <title>ملصقات باركود رَفّ A4</title>
+        <style>
+          @page { size: A4; margin: 10mm; }
+          body { font-family: system-ui, sans-serif; margin: 0; padding: 0; background: #fff; color: #111; }
+          .sheet { display: grid; grid-template-columns: repeat(${cols}, 1fr); gap: 6mm; }
+          .label-box { border: 1px solid #ccc; border-radius: 6px; padding: 6px 8px; text-align: center; page-break-inside: avoid; }
+          .inst { font-size: 7.5pt; color: #555; font-weight: 700; margin-bottom: 2px; }
+          .title { font-size: 9pt; font-weight: 700; margin-bottom: 4px; }
+          .meta { font-size: 7pt; color: #444; display: flex; justify-content: center; gap: 8px; margin-bottom: 4px; }
+          .bc svg { max-width: 100%; height: auto; }
+        </style>
+      </head>
+      <body>
+        <div class="sheet">${cardsHtml}</div>
+        ${LABEL_FIT_SCRIPT}
+        <script>window.onload = function(){ setTimeout(function(){ window.print(); }, 250); };</script>
+      </body>
+      </html>`;
+
+    const win = window.open('', '_blank', 'width=980,height=720');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+    } else {
+      pushToast('info', isAr ? 'تم تجهيز صفحة الملصقات' : 'Label sheet prepared');
+    }
+  };
+
+  const filteredBooks = books.filter((b) => {
+    if (!searchPrint.trim()) return true;
+    const q = searchPrint.toLowerCase();
+    return (
+      b.title.toLowerCase().includes(q) ||
+      b.referenceNumber.toLowerCase().includes(q) ||
+      (b.shelf || '').toLowerCase().includes(q)
+    );
+  });
+
+  return (
+    <div className="stage-view">
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          display: 'grid',
+          gridTemplateColumns: '360px 1fr',
+          gap: 12,
+          overflow: 'hidden',
+        }}
+      >
+        {/* Column 1: Hardware Barcode Wedge & Instant Action Station */}
+        <div className="glass-panel panel-flex-col" style={{ justifyContent: 'space-between' }}>
+          <div>
+            <div className="section-header">
+              <div>
+                <div className="section-title">
+                  <Icon.Barcode style={{ color: 'var(--brand-accent)' }} />
+                  <span>{isAr ? 'محطة قارئ الباركود الفورية' : 'Hardware Barcode Station'}</span>
+                </div>
+                <div className="section-subtitle">
+                  {isAr
+                    ? `التقاط تلقائي بسرعة ${settings.scannerGapMs}ms (${settings.scannerTerminator})`
+                    : `Auto-wedge capture at ${settings.scannerGapMs}ms (${settings.scannerTerminator})`}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+              <button
+                type="button"
+                className={`btn ${scanAction === 'inspect' ? 'btn-primary' : 'btn-ghost'}`}
+                style={{ flex: 1 }}
+                onClick={() => setScanAction('inspect')}
+              >
+                {isAr ? 'عرض البطاقة' : 'Inspect'}
+              </button>
+              <button
+                type="button"
+                className={`btn ${scanAction === 'borrow' ? 'btn-primary' : 'btn-ghost'}`}
+                style={{ flex: 1 }}
+                onClick={() => setScanAction('borrow')}
+              >
+                {isAr ? 'إعارة سريعة' : 'Quick Borrow'}
+              </button>
+              <button
+                type="button"
+                className={`btn ${scanAction === 'return' ? 'btn-primary' : 'btn-ghost'}`}
+                style={{ flex: 1 }}
+                onClick={() => setScanAction('return')}
+              >
+                {isAr ? 'إرجاع سريع' : 'Quick Return'}
+              </button>
+            </div>
+
+            <form onSubmit={handleScanSubmit} style={{ display: 'flex', gap: 6 }}>
+              <input
+                className="vertix-input"
+                style={{ fontFamily: 'var(--font-mono)', direction: 'ltr' }}
+                value={scanInput}
+                onChange={(e) => setScanInput(e.target.value)}
+                placeholder="raf-0001..."
+              />
+              <button type="submit" className="btn btn-primary">
+                {isAr ? 'تنفيذ' : 'Go'}
+              </button>
+            </form>
+
+            {/* Label Sheet Quick Options */}
+            <div
+              style={{
+                marginTop: 14,
+                paddingTop: 12,
+                borderTop: '1px solid var(--border-subtle)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+              }}
+            >
+              <div style={{ fontWeight: 700, fontSize: 12.5 }}>
+                {isAr ? 'إعدادات شبكة الملصقات (A4)' : 'A4 Label Sheet Configuration'}
+              </div>
+
+              <div className="input-group">
+                <label className="input-label">
+                  {isAr ? 'عدد الأعمدة في صفحة A4' : 'Columns per A4 Sheet'}
+                </label>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {([3, 4, 5] as const).map((col) => (
+                    <button
+                      key={col}
+                      type="button"
+                      className={`btn ${settings.labelColumns === col ? 'btn-primary' : 'btn-ghost'}`}
+                      style={{ flex: 1 }}
+                      onClick={() => updateSettings({ labelColumns: col })}
+                    >
+                      {col} {isAr ? 'أعمدة' : 'Cols'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 12,
+                  cursor: 'pointer',
                 }}
+              >
+                <input
+                  type="checkbox"
+                  checked={settings.labelShowShelf}
+                  onChange={(e) => updateSettings({ labelShowShelf: e.target.checked })}
+                />
+                <span>{isAr ? 'إظهار موقع الرف على الملصق' : 'Show shelf location on label'}</span>
+              </label>
+
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 12,
+                  cursor: 'pointer',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={settings.labelShowPrice}
+                  onChange={(e) => updateSettings({ labelShowPrice: e.target.checked })}
+                />
+                <span>{isAr ? 'إظهار السعر على الملصق' : 'Show price on label'}</span>
+              </label>
+            </div>
+          </div>
+
+          <button
+            className="btn btn-primary"
+            style={{ width: '100%', height: 36 }}
+            onClick={printSelectedSheet}
+          >
+            <Icon.Printer />
+            <span>
+              {isAr
+                ? `طباعة الملصقات المحددة (${selectedForPrint.length.toLocaleString('en-US')})`
+                : `Print Selected Labels (${selectedForPrint.length.toLocaleString('en-US')})`}
+            </span>
+          </button>
+        </div>
+
+        {/* Column 2: A4 Label Studio & Book Picker */}
+        <div className="glass-panel panel-flex-col">
+          <div className="section-header">
+            <div>
+              <div className="section-title">
+                <Icon.Printer style={{ color: 'var(--brand-accent)' }} />
+                <span>{isAr ? 'استوديو معاينة وتحديد ملصقات الكتب' : 'Label Print Studio & Selection'}</span>
+              </div>
+              <div className="section-subtitle">
+                {isAr
+                  ? 'انقر على أي بطاقة لتضمينها أو استبعادها من ورقة الطباعة'
+                  : 'Click any card to toggle inclusion in the A4 print sheet'}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <input
+                className="vertix-input"
+                style={{ width: 190, height: 30 }}
+                value={searchPrint}
+                onChange={(e) => setSearchPrint(e.target.value)}
+                placeholder={isAr ? 'تصفية الكتب...' : 'Filter books...'}
               />
               <button
-                className="btn-primary-orange"
-                onClick={() => setSelectedBookId(scannedBook.id)}
+                className="btn btn-ghost"
+                style={{ height: 30 }}
+                onClick={() => setSelectedForPrint(filteredBooks.map((b) => b.id))}
               >
-                إدارة الإعارة / التفاصيل
+                {isAr ? 'تحديد الكل' : 'Select All'}
+              </button>
+              <button
+                className="btn btn-ghost"
+                style={{ height: 30 }}
+                onClick={() => setSelectedForPrint([])}
+              >
+                {isAr ? 'إلغاء الكل' : 'Clear'}
               </button>
             </div>
           </div>
-        )}
-      </div>
 
-      {/* A4 Barcode Label Studio */}
-      <div className="vertix-card" style={{ gap: '16px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <h2 style={{ fontSize: '17px', fontWeight: 800 }}>
-              استوديو طباعة ملصقات الباركود (A4 Label Studio)
-            </h2>
-            <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}>
-              تحجيم تلقائي ذكي للنصوص الطويلة بدون قص أو نقاط حذف ({labelsList.length} ملصق محدد)
-            </p>
-          </div>
-          <button className="btn-primary-orange" onClick={handlePrintStudioSheet}>
-            <Icon.Printer />
-            <span>معاينة وطباعة صفحة الملصقات ({labelsList.length})</span>
-          </button>
-        </div>
-
-        <div className="form-grid">
-          <div className="field-group">
-            <label>نطاق الملصقات</label>
-            <select
-              className="vertix-select"
-              value={labelScope}
-              onChange={(e) => setLabelScope(e.target.value as any)}
-            >
-              <option value="all">كل كتب المكتبة ({books.length})</option>
-              <option value="category">حسب التصنيف</option>
-              <option value="shelf">حسب الرف</option>
-            </select>
-          </div>
-
-          {labelScope === 'category' && (
-            <div className="field-group">
-              <label>اختر التصنيف</label>
-              <select
-                className="vertix-select"
-                value={chosenCategory}
-                onChange={(e) => setChosenCategory(e.target.value)}
-              >
-                <option value="">كل التصنيفات</option>
-                {(meta?.categories || []).map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {labelScope === 'shelf' && (
-            <div className="field-group">
-              <label>اختر الرف</label>
-              <select
-                className="vertix-select"
-                value={chosenShelf}
-                onChange={(e) => setChosenShelf(e.target.value)}
-              >
-                <option value="">كل الرفوف</option>
-                {(meta?.shelves || []).map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div className="field-group">
-            <label>عدد الأعمدة في صفحة A4</label>
-            <select
-              className="vertix-select"
-              value={cols}
-              onChange={(e) => setCols(Number(e.target.value) as 3 | 4 | 5)}
-            >
-              <option value={3}>3 أعمدة (ملصقات كبيرة)</option>
-              <option value={4}>4 أعمدة (قياسي)</option>
-              <option value={5}>5 أعمدة (مكثف)</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Live Preview Grid */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: `repeat(${cols}, 1fr)`,
-            gap: '12px',
-          }}
-        >
-          {labelsList.slice(0, 8).map((b) => (
-            <div
-              key={b.id}
-              style={{
-                background: '#faf8f4',
-                color: '#2b211b',
-                border: '1px solid #d9d5ca',
-                borderRadius: '14px',
-                padding: '12px',
-                textAlign: 'center',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '6px',
-              }}
-            >
-              <div style={{ fontSize: '10.5px', color: '#544a41', fontWeight: 700, fontFamily: 'var(--font-ui)' }}>
-                {settings?.institutionName || 'مكتبة رف'}
+          <div className="scroll-region">
+            {filteredBooks.length === 0 ? (
+              <div className="empty-state-card">
+                <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                  {isAr ? 'لا توجد كتب مطابقة لعرض الملصقات' : 'No matching books to display labels'}
+                </div>
               </div>
-              <div style={{ fontSize: '13.5px', fontWeight: 700, fontFamily: 'var(--font-serif)', color: '#221913' }}>
-                {b.title}
-              </div>
+            ) : (
               <div
-                dangerouslySetInnerHTML={{
-                  __html: renderBarcodeSVG(b.referenceNumber, {
-                    height: 34,
-                    moduleWidth: 1.45,
-                  }),
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: `repeat(${settings.labelColumns || 4}, 1fr)`,
+                  gap: 10,
                 }}
-              />
-              <div style={{ fontSize: '11px', color: '#544a41', fontWeight: 600 }}>
-                {b.shelf ? `رف: ${b.shelf}` : ''} {b.volumes > 1 ? `· ${b.volumes} مجلد` : ''}
+              >
+                {filteredBooks.map((b) => {
+                  const isSelected = selectedForPrint.includes(b.id);
+                  const svg = renderBarcodeSVG(b.referenceNumber, {
+                    height: 36,
+                    moduleWidth: 1.45,
+                    color: '#1c1613',
+                    background: '#ffffff',
+                  });
+                  return (
+                    <div
+                      key={b.id}
+                      onClick={() => togglePrintBook(b.id)}
+                      style={{
+                        background: '#ffffff',
+                        color: '#1c1613',
+                        borderRadius: 10,
+                        padding: 10,
+                        border: isSelected
+                          ? '2px solid var(--brand-accent)'
+                          : '1px solid rgba(0,0,0,0.12)',
+                        boxShadow: isSelected ? 'var(--shadow-md)' : 'none',
+                        opacity: isSelected ? 1 : 0.65,
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        position: 'relative',
+                        transition: 'all 0.16s ease',
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: 9.5,
+                          fontWeight: 700,
+                          color: '#6b5e53',
+                          marginBottom: 2,
+                        }}
+                      >
+                        {settings.institutionName || (isAr ? 'مكتبة رَفّ' : 'RAFF Library')}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 700,
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          marginBottom: 4,
+                        }}
+                      >
+                        {b.title}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 10,
+                          color: '#574c43',
+                          marginBottom: 6,
+                          display: 'flex',
+                          justifyContent: 'center',
+                          gap: 6,
+                        }}
+                      >
+                        {settings.labelShowShelf && b.shelf && <span>{b.shelf}</span>}
+                        {settings.labelShowPrice && b.price && <span>{b.price} ر.س</span>}
+                      </div>
+                      <div
+                        style={{ display: 'flex', justifyContent: 'center', overflow: 'hidden' }}
+                        dangerouslySetInnerHTML={{ __html: svg }}
+                      />
+                    </div>
+                  );
+                })}
               </div>
-            </div>
-          ))}
+            )}
+          </div>
         </div>
       </div>
     </div>
   );
-};
+}

@@ -16,16 +16,16 @@
         "title": "رَفّ 4.0 — نظام فهرسة وإدارة المكتبات",
         "width": 1440,
         "height": 900,
-        "minWidth": 1100,
-        "minHeight": 700,
-        "decorations": true,
+        "minWidth": 1024,
+        "minHeight": 640,
+        "decorations": false,
         "resizable": true,
         "maximized": true,
         "center": true
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self' 'unsafe-inline';"
+      "csp": "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self' 'unsafe-inline'; connect-src 'self' https://api.github.com;"
     }
   },
   "bundle": {
@@ -43,7 +43,9 @@
         "type": "downloadBootstrapper"
       },
       "nsis": {
-        "installMode": "currentUser"
+        "installMode": "currentUser",
+        "installerIcon": "icons/icon.ico",
+        "displayLanguageSelector": false
       }
     },
     "linux": {

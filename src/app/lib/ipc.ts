@@ -1126,8 +1126,123 @@ export async function invokeRaff<T = any>(
       return db.auth as unknown as T;
     }
 
+    case 'auth_set_public_mode': {
+      db.auth.publicModeEnabled = Boolean(args.enabled);
+      saveLocalDb(db);
+      return db.auth as unknown as T;
+    }
+
+    case 'auth_update_credentials': {
+      if (args.newPassword) db.auth.password = String(args.newPassword);
+      if (args.recoveryQuestion !== undefined) db.auth.recoveryQuestion = String(args.recoveryQuestion);
+      if (args.recoveryAnswer !== undefined) db.auth.recoveryAnswer = String(args.recoveryAnswer);
+      db.auth.recoveryConfigured = Boolean(db.auth.recoveryQuestion && db.auth.recoveryAnswer);
+      saveLocalDb(db);
+      return db.auth as unknown as T;
+    }
+
+    case 'auth_recover': {
+      const answer = String(args.answer || '').trim().toLowerCase();
+      const expected = String(db.auth.recoveryAnswer || '').trim().toLowerCase();
+      if (!expected || answer !== expected) {
+        throw new Error('إجابة سؤال الاسترداد غير صحيحة');
+      }
+      db.auth.password = String(args.newPassword || '');
+      db.auth.unlocked = true;
+      db.auth.mode = 'admin';
+      db.auth.failedAttempts = 0;
+      db.auth.remainingAttempts = 5;
+      saveLocalDb(db);
+      return db.auth as unknown as T;
+    }
+
+    case 'apply_loan_duration_to_open_loans': {
+      const days = Math.max(1, Number(args.durationDays || db.settings.loanDurationDays || 30));
+      let updatedLoans = 0;
+      for (const b of db.books) {
+        for (const l of b.loans || []) {
+          if (isLoanActive(l) && l.borrowedAt) {
+            const startMs = Date.parse(l.borrowedAt);
+            if (Number.isFinite(startMs)) {
+              l.dueAt = new Date(startMs + days * 86_400_000).toISOString();
+              updatedLoans += 1;
+            }
+          }
+        }
+      }
+      saveLocalDb(db);
+      return { updatedLoans, durationDays: days } as unknown as T;
+    }
+
+    case 'restore_backup_file': {
+      db.activity.unshift({
+        id: `act-${Date.now()}`,
+        type: 'restore-backup',
+        message: `استعادة نسخة احتياطية: ${args.filePath}`,
+        createdAt: nowIso(),
+      });
+      saveLocalDb(db);
+      return { restored: true, books: db.books.length } as unknown as T;
+    }
+
+    case 'import_json': {
+      const raw = String(args.content || '{}');
+      const parsed = JSON.parse(raw);
+      const incoming: Book[] = Array.isArray(parsed.books) ? parsed.books : Array.isArray(parsed) ? parsed : [];
+      if (args.mode === 'replace') {
+        db.books = incoming;
+        if (parsed.settings) db.settings = { ...db.settings, ...parsed.settings };
+        saveLocalDb(db);
+        return { imported: true, mode: 'replace', total: db.books.length } as unknown as T;
+      } else {
+        const existingRefs = new Set(db.books.map((b) => referenceIdentity(b.referenceNumber)));
+        let added = 0;
+        let skipped = 0;
+        for (const item of incoming) {
+          const refKey = referenceIdentity(item.referenceNumber || '');
+          if (refKey && existingRefs.has(refKey)) {
+            skipped += 1;
+            continue;
+          }
+          if (refKey) existingRefs.add(refKey);
+          db.books.unshift({
+            ...item,
+            id: item.id || `b-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            loans: Array.isArray(item.loans) ? item.loans : [],
+            keywords: Array.isArray(item.keywords) ? item.keywords : [],
+          });
+          added += 1;
+        }
+        saveLocalDb(db);
+        return { imported: true, mode: 'merge', added, skipped, total: db.books.length } as unknown as T;
+      }
+    }
+
+    case 'reset_all': {
+      db.books = [];
+      db.trash = [];
+      db.activity = [
+        {
+          id: `act-${Date.now()}`,
+          type: 'reset',
+          message: 'تمت تهيئة وحذف جميع بيانات المكتبة',
+          createdAt: nowIso(),
+        },
+      ];
+      db.nextRefSeq = 1;
+      saveLocalDb(db);
+      return { reset: true } as unknown as T;
+    }
+
     case 'updater_get_state':
       return db.updater as unknown as T;
+
+    case 'updater_check_now': {
+      db.updater.lastCheckedAt = nowIso();
+      db.updater.status = 'up-to-date';
+      saveLocalDb(db);
+      return db.updater as unknown as T;
+    }
 
     case 'updater_set_preferences': {
       if (typeof args.autoCheck === 'boolean') {
@@ -1163,5 +1278,53 @@ export async function invokeRaff<T = any>(
 
     default:
       return null as unknown as T;
+  }
+}
+
+export async function windowMinimize(): Promise<void> {
+  try {
+    if (typeof window !== 'undefined' && window.__TAURI_INTERNALS__?.invoke) {
+      await window.__TAURI_INTERNALS__.invoke('plugin:window|minimize', { label: 'main' });
+    }
+  } catch {
+    // ignore in non-Tauri browser preview
+  }
+}
+
+export async function windowToggleMaximize(): Promise<void> {
+  try {
+    if (typeof window !== 'undefined' && window.__TAURI_INTERNALS__?.invoke) {
+      await window.__TAURI_INTERNALS__.invoke('plugin:window|toggle_maximize', { label: 'main' });
+    } else if (typeof document !== 'undefined') {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen?.();
+      } else {
+        await document.exitFullscreen?.();
+      }
+    }
+  } catch {
+    // ignore
+  }
+}
+
+export async function windowClose(): Promise<void> {
+  try {
+    if (typeof window !== 'undefined' && window.__TAURI_INTERNALS__?.invoke) {
+      await window.__TAURI_INTERNALS__.invoke('plugin:window|close', { label: 'main' });
+    } else if (typeof window !== 'undefined') {
+      window.close();
+    }
+  } catch {
+    // ignore
+  }
+}
+
+export async function windowStartDragging(): Promise<void> {
+  try {
+    if (typeof window !== 'undefined' && window.__TAURI_INTERNALS__?.invoke) {
+      await window.__TAURI_INTERNALS__.invoke('plugin:window|start_dragging', { label: 'main' });
+    }
+  } catch {
+    // ignore
   }
 }

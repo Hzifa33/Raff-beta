@@ -1,248 +1,319 @@
 import React, { useState } from 'react';
 import { useRaffStore } from '../store/useRaffStore';
 import { Icon } from '../components/Icons';
-import { BorrowerProfile } from '../types';
 
-export const LoansView: React.FC = () => {
-  const loans = useRaffStore((s) => s.loans);
-  const loanFilter = useRaffStore((s) => s.loanFilter);
-  const borrowers = useRaffStore((s) => s.borrowers);
-  const loadLoansCenter = useRaffStore((s) => s.loadLoansCenter);
-  const returnLoan = useRaffStore((s) => s.returnLoan);
-  const setSelectedBookId = useRaffStore((s) => s.setSelectedBookId);
+export function LoansView() {
+  const {
+    lang,
+    loans,
+    loanFilter,
+    borrowers,
+    books,
+    stats,
+    setLoanFilter,
+    setInspectedBook,
+    setReturningBook,
+  } = useRaffStore();
+  const isAr = lang === 'ar';
+  const [subTab, setSubTab] = useState<'center' | 'borrowers'>('center');
+  const [query, setQuery] = useState('');
 
-  const [subTab, setSubTab] = useState<'loans' | 'borrowers'>('loans');
-  const [selectedBorrower, setSelectedBorrower] = useState<BorrowerProfile | null>(null);
+  const filteredLoans = loans.filter((l) => {
+    if (!query.trim()) return true;
+    const q = query.toLowerCase();
+    return (
+      l.title.toLowerCase().includes(q) ||
+      l.borrowerName.toLowerCase().includes(q) ||
+      l.referenceNumber.toLowerCase().includes(q) ||
+      (l.contact || '').toLowerCase().includes(q)
+    );
+  });
 
-  const filters = [
-    { id: 'open', label: 'الإعارات النشطة' },
-    { id: 'overdue', label: 'المتأخرات' },
-    { id: 'soon', label: 'تستحق قريباً' },
-    { id: 'partial', label: 'إرجاع جزئي' },
-    { id: 'history', label: 'سجل المُرجعة' },
-    { id: 'all', label: 'الكل' },
+  const filteredBorrowers = borrowers.filter((b) => {
+    if (!query.trim()) return true;
+    const q = query.toLowerCase();
+    return (
+      b.name.toLowerCase().includes(q) ||
+      (b.contact || '').toLowerCase().includes(q)
+    );
+  });
+
+  const filterPills: { id: string; ar: string; en: string }[] = [
+    { id: 'open', ar: 'الإعارات النشطة', en: 'Open Loans' },
+    { id: 'overdue', ar: 'المتأخرة', en: 'Overdue' },
+    { id: 'soon', ar: 'تستحق قريباً', en: 'Due Soon' },
+    { id: 'partial', ar: 'مرتجعة جزئياً', en: 'Partial Return' },
+    { id: 'history', ar: 'سجل المرتجعات', en: 'Returned History' },
+    { id: 'all', ar: 'الكل', en: 'All Loans' },
   ];
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-      <div className="stage-header-row">
-        <div className="stage-title-group">
-          <div className="stage-title-icon">
-            <Icon.Users />
-          </div>
-          <div>
-            <h1 className="stage-title">مركز الإعارات ودليل المستعيرين</h1>
-            <p className="stage-subtitle">
-              تتبّع الإعارات الكاملة والجزئية واسترداد الأجزاء تدريجياً
-            </p>
-          </div>
-        </div>
+  const fmt = (n: number | undefined | null) => Number(n || 0).toLocaleString('en-US');
 
-        <div className="nav-pill-group">
+  return (
+    <div className="stage-view">
+      {/* Top KPI & Sub-Navigation Header */}
+      <div
+        className="glass-panel"
+        style={{
+          padding: '10px 14px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          flexShrink: 0,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
-            className={`nav-pill-btn ${subTab === 'loans' ? 'active' : ''}`}
-            onClick={() => setSubTab('loans')}
+            className={`btn ${subTab === 'center' ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => setSubTab('center')}
           >
-            مركز الإعارات ({loans.length})
+            <Icon.Book />
+            <span>{isAr ? 'مركز الإعارات والاستحقاق' : 'Circulation & Due Center'}</span>
           </button>
           <button
-            className={`nav-pill-btn ${subTab === 'borrowers' ? 'active' : ''}`}
+            className={`btn ${subTab === 'borrowers' ? 'btn-primary' : 'btn-ghost'}`}
             onClick={() => setSubTab('borrowers')}
           >
-            دليل المستعيرين ({borrowers.length})
+            <Icon.Users />
+            <span>
+              {isAr
+                ? `دليل المستعيرين (${fmt(borrowers.length)})`
+                : `Borrowers Directory (${fmt(borrowers.length)})`}
+            </span>
           </button>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {subTab === 'center' && (
+            <div style={{ display: 'flex', gap: 4 }}>
+              {filterPills.map((fp) => (
+                <button
+                  key={fp.id}
+                  className={`btn ${loanFilter === fp.id ? 'btn-primary' : 'btn-ghost'}`}
+                  style={{ height: 28, padding: '0 9px', fontSize: 11.5 }}
+                  onClick={() => setLoanFilter(fp.id)}
+                >
+                  {isAr ? fp.ar : fp.en}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <input
+            className="vertix-input"
+            style={{ width: 220, height: 30 }}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={
+              isAr
+                ? 'بحث بالمستعير، الكتاب، الهاتف...'
+                : 'Filter by borrower, title, phone...'
+            }
+          />
         </div>
       </div>
 
-      {subTab === 'loans' ? (
-        <>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {filters.map((f) => (
-              <button
-                key={f.id}
-                className={loanFilter === f.id ? 'btn-obsidian' : 'btn-soft'}
-                onClick={() => loadLoansCenter(f.id)}
-              >
-                {f.label}
-              </button>
-            ))}
+      {/* Summary Strip */}
+      <div className="overview-kpi-row" style={{ flexShrink: 0 }}>
+        <div className="stat-card">
+          <div>
+            <div className="stat-label">{isAr ? 'النسخ المستعارة حالياً' : 'Currently Borrowed'}</div>
+            <div className="stat-value">{fmt(stats?.borrowedCopies)}</div>
           </div>
+          <span className="status-badge status-partial">
+            {isAr ? 'نشط' : 'Active'}
+          </span>
+        </div>
+        <div className="stat-card">
+          <div>
+            <div className="stat-label">{isAr ? 'المستعيرون النشطون' : 'Active Borrowers'}</div>
+            <div className="stat-value">{fmt(stats?.activeBorrowers)}</div>
+          </div>
+          <span className="status-badge status-available">
+            {fmt(borrowers.length)} {isAr ? 'مسجل' : 'total'}
+          </span>
+        </div>
+        <div className="stat-card">
+          <div>
+            <div className="stat-label">{isAr ? 'تستحق خلال 3 أيام' : 'Due Within 3 Days'}</div>
+            <div className="stat-value" style={{ color: 'var(--amber)' }}>{fmt(stats?.dueSoonLoans)}</div>
+          </div>
+          <span className="status-badge status-partial">
+            {isAr ? 'قريباً' : 'Soon'}
+          </span>
+        </div>
+        <div className="stat-card">
+          <div>
+            <div className="stat-label">{isAr ? 'إعارات متأخرة' : 'Overdue Loans'}</div>
+            <div className="stat-value" style={{ color: 'var(--crimson)' }}>{fmt(stats?.overdueLoans)}</div>
+          </div>
+          <span className="status-badge status-overdue">
+            {isAr ? 'متأخر' : 'Overdue'}
+          </span>
+        </div>
+      </div>
 
-          <div className="vertix-table-wrap">
-            <table className="vertix-table">
+      {/* Main Scrollable Table / Directory */}
+      {subTab === 'center' ? (
+        filteredLoans.length === 0 ? (
+          <div className="empty-state-card">
+            <Icon.Users style={{ width: 32, height: 32, color: 'var(--brand-accent)' }} />
+            <div style={{ fontSize: 14.5, fontWeight: 700 }}>
+              {isAr ? 'لا توجد إعارات ضمن هذا التصنيف حالياً' : 'No loans found in this category'}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+              {isAr
+                ? 'يمكنك تسجيل إعارة جديدة من الفهرس أو عبر قارئ الباركود.'
+                : 'You can record a new loan from the Catalogue or Barcode Scanner.'}
+            </div>
+          </div>
+        ) : (
+          <div className="catalogue-table-wrap">
+            <table className="catalogue-table">
               <thead>
                 <tr>
-                  <th>الرقم المرجعي</th>
-                  <th>الكتاب</th>
-                  <th>المستعير</th>
-                  <th>التواصل</th>
-                  <th>النطاق المتبقي</th>
-                  <th>تاريخ الإعارة</th>
-                  <th>تاريخ الاستحقاق</th>
-                  <th>الحالة</th>
-                  <th>إجراءات</th>
+                  <th>{isAr ? 'الرقم المرجعي' : 'Reference'}</th>
+                  <th>{isAr ? 'عنوان الكتاب' : 'Book Title'}</th>
+                  <th>{isAr ? 'المستعير' : 'Borrower'}</th>
+                  <th>{isAr ? 'التواصل' : 'Contact'}</th>
+                  <th>{isAr ? 'النطاق / الأجزاء' : 'Scope / Volumes'}</th>
+                  <th>{isAr ? 'تاريخ الإعارة' : 'Borrowed On'}</th>
+                  <th>{isAr ? 'تاريخ الاستحقاق' : 'Due Date'}</th>
+                  <th>{isAr ? 'الحالة' : 'Status'}</th>
+                  <th>{isAr ? 'إجراء' : 'Action'}</th>
                 </tr>
               </thead>
               <tbody>
-                {loans.map((item) => (
-                  <tr key={item.loanId}>
-                    <td>
-                      <span className="ref-mono-pill">{item.referenceNumber}</span>
-                    </td>
-                    <td
-                      style={{ fontWeight: 800, cursor: 'pointer' }}
-                      onClick={() => setSelectedBookId(item.bookId)}
-                    >
-                      {item.title}
-                    </td>
-                    <td style={{ fontWeight: 700 }}>{item.borrowerName}</td>
-                    <td>{item.contact || '—'}</td>
-                    <td>
-                      <span className="meta-chip">{item.outstandingScope || item.scope}</span>
-                      {item.partialReturn && (
-                        <span
-                          className="status-badge partial"
-                          style={{ marginInlineStart: '6px' }}
-                        >
-                          أُعيد: ج{item.returnedParts.join('، ج')}
-                        </span>
-                      )}
-                    </td>
-                    <td>{item.borrowedAt?.slice(0, 10) || '—'}</td>
-                    <td>{item.dueAt?.slice(0, 10) || '—'}</td>
-                    <td>
-                      {!item.active ? (
-                        <span className="status-badge available">مُرجع</span>
-                      ) : item.overdue ? (
-                        <span className="status-badge borrowed">
-                          متأخر ({item.overdueDays} يوم)
-                        </span>
-                      ) : (
-                        <span className="status-badge partial">نشط</span>
-                      )}
-                    </td>
-                    <td>
-                      {item.active && (
-                        <div style={{ display: 'flex', gap: '6px' }}>
+                {filteredLoans.map((item) => {
+                  const parentBook = books.find((b) => b.id === item.bookId);
+                  return (
+                    <tr key={item.loanId}>
+                      <td>
+                        <span className="ref-chip">{item.referenceNumber}</span>
+                      </td>
+                      <td
+                        style={{ fontWeight: 700, cursor: 'pointer' }}
+                        onClick={() => parentBook && setInspectedBook(parentBook)}
+                      >
+                        {item.title}
+                      </td>
+                      <td style={{ fontWeight: 600 }}>{item.borrowerName}</td>
+                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11.5 }}>
+                        {item.contact || '—'}
+                      </td>
+                      <td>
+                        <span className="meta-pill">{item.outstandingScope || item.scope}</span>
+                      </td>
+                      <td style={{ fontFamily: 'var(--font-numeric)', fontSize: 11.5 }}>
+                        {item.borrowedAt ? item.borrowedAt.slice(0, 10) : '—'}
+                      </td>
+                      <td style={{ fontFamily: 'var(--font-numeric)', fontSize: 11.5 }}>
+                        {item.dueAt ? item.dueAt.slice(0, 10) : '—'}
+                      </td>
+                      <td>
+                        {!item.active ? (
+                          <span className="status-badge status-available">
+                            {isAr ? 'مُرتجع' : 'Returned'}
+                          </span>
+                        ) : item.overdue ? (
+                          <span className="status-badge status-overdue">
+                            {isAr
+                              ? `متأخر (${item.overdueDays} يوم)`
+                              : `Overdue (${item.overdueDays}d)`}
+                          </span>
+                        ) : item.dueSoon || item.dueToday ? (
+                          <span className="status-badge status-partial">
+                            {isAr ? 'يستحق قريباً' : 'Due Soon'}
+                          </span>
+                        ) : (
+                          <span className="status-badge status-available">
+                            {isAr ? 'سارٍ' : 'Active'}
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        {item.active && parentBook && (
                           <button
-                            className="btn-primary-orange"
-                            style={{ padding: '6px 12px', fontSize: '11.5px' }}
-                            onClick={() => returnLoan(item.bookId, item.loanId)}
+                            className="btn btn-primary"
+                            style={{ height: 26, padding: '0 10px', fontSize: 11 }}
+                            onClick={() =>
+                              setReturningBook({ book: parentBook, loanId: item.loanId })
+                            }
                           >
-                            إرجاع الكل
+                            {isAr ? 'إرجاع' : 'Return'}
                           </button>
-                          {item.outstandingParts.length > 1 && (
-                            <button
-                              className="btn-soft"
-                              style={{ padding: '6px 12px', fontSize: '11.5px' }}
-                              onClick={() => setSelectedBookId(item.bookId)}
-                            >
-                              إرجاع جزئي
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
-        </>
-      ) : (
-        <div className="books-grid">
-          {borrowers.map((prof) => (
-            <div
-              key={prof.name}
-              className="book-vertix-card"
-              onClick={() => setSelectedBorrower(prof)}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <div>
-                  <div className="book-card-title">{prof.name}</div>
-                  <div className="book-card-author">{prof.contact || 'بدون رقم تواصل'}</div>
-                </div>
-                <span
-                  className={`status-badge ${
-                    prof.overdueCount > 0
-                      ? 'borrowed'
-                      : prof.currentCount > 0
-                      ? 'partial'
-                      : 'available'
-                  }`}
-                >
-                  نشط: {prof.currentCount}
-                </span>
-              </div>
-
-              <div className="book-card-meta-strip">
-                <span className="meta-chip">إجمالي الإعارات: {prof.totalLoans}</span>
-                {prof.overdueCount > 0 && (
-                  <span className="meta-chip" style={{ color: 'var(--status-borrowed)' }}>
-                    متأخرات: {prof.overdueCount}
-                  </span>
-                )}
-              </div>
-            </div>
-          ))}
+        )
+      ) : filteredBorrowers.length === 0 ? (
+        <div className="empty-state-card">
+          <Icon.Users style={{ width: 32, height: 32, color: 'var(--brand-accent)' }} />
+          <div style={{ fontSize: 14.5, fontWeight: 700 }}>
+            {isAr ? 'لا يوجد مستعيرون مسجلون حالياً' : 'No borrowers registered yet'}
+          </div>
         </div>
-      )}
+      ) : (
+        <div className="scroll-region">
+          <div className="discover-grid">
+            {filteredBorrowers.map((prof) => (
+              <div key={prof.name} className="book-bento-card" style={{ cursor: 'default' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>{prof.name}</div>
+                    <div style={{ fontSize: 11.5, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                      {prof.contact || (isAr ? 'بدون رقم تواصل' : 'No contact number')}
+                    </div>
+                  </div>
+                  <span
+                    className={`status-badge ${
+                      prof.overdueCount > 0
+                        ? 'status-overdue'
+                        : prof.currentCount > 0
+                        ? 'status-partial'
+                        : 'status-available'
+                    }`}
+                  >
+                    {prof.currentCount} {isAr ? 'نشط' : 'active'}
+                  </span>
+                </div>
 
-      {/* Borrower Profile Modal */}
-      {selectedBorrower && (
-        <div className="modal-backdrop" onClick={() => setSelectedBorrower(null)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <div>
-                <h2 style={{ fontSize: '20px', fontWeight: 800 }}>
-                  ملف المستعير: {selectedBorrower.name}
-                </h2>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
-                  وسائل التواصل: {selectedBorrower.contacts.join(' · ') || '—'}
-                </p>
+                <div className="book-meta-strip">
+                  <span className="meta-pill">
+                    {isAr ? 'إجمالي الإعارات:' : 'Total Loans:'} {fmt(prof.totalLoans)}
+                  </span>
+                  <span className="meta-pill">
+                    {isAr ? 'المتأخرة:' : 'Overdue:'} {fmt(prof.overdueCount)}
+                  </span>
+                </div>
+
+                {(prof.loans || []).slice(0, 3).map((ln) => (
+                  <div
+                    key={ln.loanId}
+                    style={{
+                      fontSize: 11.5,
+                      padding: '5px 8px',
+                      borderRadius: 6,
+                      background: 'var(--bg-muted)',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <span style={{ fontWeight: 600 }}>{ln.title}</span>
+                    <span className="ref-chip" style={{ fontSize: 10 }}>{ln.referenceNumber}</span>
+                  </div>
+                ))}
               </div>
-              <button className="btn-soft" onClick={() => setSelectedBorrower(null)}>
-                إغلاق
-              </button>
-            </div>
-
-            <div className="vertix-table-wrap">
-              <table className="vertix-table">
-                <thead>
-                  <tr>
-                    <th>الرقم المرجعي</th>
-                    <th>الكتاب</th>
-                    <th>النطاق</th>
-                    <th>تاريخ الإعارة</th>
-                    <th>الحالة</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(selectedBorrower.loans || []).map((l) => (
-                    <tr key={l.loanId}>
-                      <td>
-                        <span className="ref-mono-pill">{l.referenceNumber}</span>
-                      </td>
-                      <td style={{ fontWeight: 700 }}>{l.title}</td>
-                      <td>{l.scope || 'نسخة كاملة'}</td>
-                      <td>{l.borrowedAt?.slice(0, 10)}</td>
-                      <td>
-                        <span
-                          className={`status-badge ${
-                            !l.active ? 'available' : l.overdue ? 'borrowed' : 'partial'
-                          }`}
-                        >
-                          {!l.active ? 'مُرجع' : l.overdue ? 'متأخر' : 'نشط'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            ))}
           </div>
         </div>
       )}
     </div>
   );
-};
+}

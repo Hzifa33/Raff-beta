@@ -1,572 +1,962 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRaffStore } from '../store/useRaffStore';
 import {
   computeBookAvailability,
   getLoanOutstandingVolumes,
+  isLoanActive,
   loanScopeLabel,
   renderBarcodeSVG,
 } from '../lib/domain';
 import { Icon } from './Icons';
 
-export const BookDetailModal: React.FC = () => {
-  const selectedBookId = useRaffStore((s) => s.selectedBookId);
-  const books = useRaffStore((s) => s.books);
-  const meta = useRaffStore((s) => s.meta);
-  const auth = useRaffStore((s) => s.auth);
+export function BookInspectorModal() {
+  const {
+    lang,
+    inspectedBook,
+    auth,
+    setInspectedBook,
+    setEditingBook,
+    setBorrowingBook,
+    setReturningBook,
+    setLabelPreviewBook,
+    removeBook,
+  } = useRaffStore();
+  const isAr = lang === 'ar';
+  const isAdmin = !auth?.enabled || (auth?.unlocked && auth?.mode === 'admin');
 
-  const setSelectedBookId = useRaffStore((s) => s.setSelectedBookId);
-  const setEditingBook = useRaffStore((s) => s.setEditingBook);
-  const setActiveTab = useRaffStore((s) => s.setActiveTab);
-  const borrowCopy = useRaffStore((s) => s.borrowCopy);
-  const returnLoan = useRaffStore((s) => s.returnLoan);
-  const returnLoanParts = useRaffStore((s) => s.returnLoanParts);
-  const removeBook = useRaffStore((s) => s.removeBook);
-  const updateBook = useRaffStore((s) => s.updateBook);
-  const pushToast = useRaffStore((s) => s.pushToast);
+  if (!inspectedBook) return null;
+  const b = inspectedBook;
+  const avail = computeBookAvailability(b);
+  const svg = renderBarcodeSVG(b.referenceNumber, {
+    height: 44,
+    moduleWidth: 1.7,
+    color: '#1c1613',
+    background: '#ffffff',
+  });
 
-  const book = useMemo(
-    () => books.find((b) => b.id === selectedBookId) || null,
-    [books, selectedBookId]
+  return (
+    <div className="modal-backdrop" onClick={() => setInspectedBook(null)}>
+      <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+          <div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+              <span className="ref-chip">{b.referenceNumber}</span>
+              <span
+                className={`status-badge ${
+                  avail.state === 'available'
+                    ? 'status-available'
+                    : avail.state === 'partial'
+                    ? 'status-partial'
+                    : 'status-borrowed'
+                }`}
+              >
+                {avail.state === 'available'
+                  ? isAr
+                    ? 'متاح'
+                    : 'Available'
+                  : avail.state === 'partial'
+                  ? isAr
+                    ? 'مستعار جزئياً'
+                    : 'Partially Borrowed'
+                  : isAr
+                  ? 'مستعار بالكامل'
+                  : 'Fully Borrowed'}
+              </span>
+            </div>
+            <h3 style={{ fontFamily: 'var(--font-editorial)', fontSize: 20, fontWeight: 700 }}>
+              {b.title}
+            </h3>
+            <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+              {b.author || (isAr ? 'بدون مؤلف' : 'Unknown Author')}
+              {b.publisher ? ` · ${b.publisher}` : ''}
+            </div>
+          </div>
+
+          <button className="win-ctrl-btn" onClick={() => setInspectedBook(null)}>
+            <Icon.Close />
+          </button>
+        </div>
+
+        {/* Metadata Grid */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: 8,
+            marginTop: 14,
+            padding: 12,
+            borderRadius: 10,
+            background: 'var(--bg-muted)',
+            border: '1px solid var(--border-subtle)',
+            fontSize: 12,
+          }}
+        >
+          <div>
+            <span style={{ color: 'var(--text-muted)' }}>{isAr ? 'التصنيف:' : 'Category:'}</span>{' '}
+            <strong>{b.category || '—'}</strong>
+          </div>
+          <div>
+            <span style={{ color: 'var(--text-muted)' }}>{isAr ? 'الرف:' : 'Shelf:'}</span>{' '}
+            <strong>{b.shelf || '—'}</strong>
+          </div>
+          <div>
+            <span style={{ color: 'var(--text-muted)' }}>{isAr ? 'النسخ المتاحة:' : 'Copies:'}</span>{' '}
+            <strong>
+              {avail.availableCopies} / {avail.copiesTotal}
+            </strong>
+          </div>
+          <div>
+            <span style={{ color: 'var(--text-muted)' }}>{isAr ? 'الأجزاء:' : 'Volumes:'}</span>{' '}
+            <strong>{b.volumes}</strong>
+          </div>
+          <div>
+            <span style={{ color: 'var(--text-muted)' }}>{isAr ? 'الطبعة / السنة:' : 'Edition / Year:'}</span>{' '}
+            <strong>
+              {b.edition || '—'} {b.publishYear ? `(${b.publishYear})` : ''}
+            </strong>
+          </div>
+          <div>
+            <span style={{ color: 'var(--text-muted)' }}>{isAr ? 'السعر:' : 'Price:'}</span>{' '}
+            <strong>{b.price ? `${b.price} ${isAr ? 'ر.س' : 'SAR'}` : '—'}</strong>
+          </div>
+          {b.series && (
+            <div style={{ gridColumn: 'span 3' }}>
+              <span style={{ color: 'var(--text-muted)' }}>{isAr ? 'السلسلة:' : 'Series:'}</span>{' '}
+              <strong>
+                {b.series} {b.seriesOrder ? `(#${b.seriesOrder})` : ''}
+              </strong>
+            </div>
+          )}
+          {b.notes && (
+            <div style={{ gridColumn: 'span 3' }}>
+              <span style={{ color: 'var(--text-muted)' }}>{isAr ? 'ملاحظات:' : 'Notes:'}</span>{' '}
+              <span>{b.notes}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Barcode Plate */}
+        <div
+          style={{
+            marginTop: 12,
+            padding: 10,
+            borderRadius: 10,
+            background: '#ffffff',
+            border: '1px solid var(--border-subtle)',
+            display: 'flex',
+            justifyContent: 'center',
+          }}
+          dangerouslySetInnerHTML={{ __html: svg }}
+        />
+
+        {/* Active Loans inside Book Inspector */}
+        {isAdmin && avail.activeLoans.length > 0 && (
+          <div style={{ marginTop: 12 }}>
+            <div style={{ fontWeight: 700, fontSize: 12.5, marginBottom: 6 }}>
+              {isAr ? 'الإعارات النشطة على هذا الكتاب:' : 'Active Loans on This Book:'}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {avail.activeLoans.map((ln) => (
+                <div
+                  key={ln.id}
+                  style={{
+                    padding: '7px 10px',
+                    borderRadius: 8,
+                    background: 'var(--bg-muted)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    fontSize: 12,
+                  }}
+                >
+                  <div>
+                    <strong>{ln.borrowerName}</strong> ·{' '}
+                    <span>{loanScopeLabel(ln, true) || (isAr ? 'نسخة كاملة' : 'Full Copy')}</span>
+                  </div>
+                  <button
+                    className="btn btn-primary"
+                    style={{ height: 26, fontSize: 11 }}
+                    onClick={() => {
+                      setInspectedBook(null);
+                      setReturningBook({ book: b, loanId: ln.id });
+                    }}
+                  >
+                    {isAr ? 'إرجاع' : 'Return'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Footer Actions */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16, gap: 8 }}>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {isAdmin && avail.availableCopies > 0 && (
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  setInspectedBook(null);
+                  setBorrowingBook(b);
+                }}
+              >
+                {isAr ? 'إعارة الكتاب' : 'Borrow Book'}
+              </button>
+            )}
+            <button
+              className="btn btn-ghost"
+              onClick={() => {
+                setInspectedBook(null);
+                setLabelPreviewBook(b);
+              }}
+            >
+              <Icon.Printer />
+              <span>{isAr ? 'طباعة ملصق' : 'Print Label'}</span>
+            </button>
+          </div>
+
+          {isAdmin && (
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button
+                className="btn btn-ghost"
+                onClick={() => {
+                  setInspectedBook(null);
+                  setEditingBook(b);
+                }}
+              >
+                {isAr ? 'تعديل البيانات' : 'Edit Book'}
+              </button>
+              <button className="btn btn-danger" onClick={() => removeBook(b.id)}>
+                {isAr ? 'نقل للمهملات' : 'Move to Trash'}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
+}
 
+export function EditBookModal() {
+  const { lang, editingBook, setEditingBook, updateBook } = useRaffStore();
+  const isAr = lang === 'ar';
+  const [form, setForm] = useState<Record<string, any>>({});
+
+  useEffect(() => {
+    if (editingBook) {
+      setForm({
+        title: editingBook.title,
+        author: editingBook.author,
+        publisher: editingBook.publisher,
+        referenceNumber: editingBook.referenceNumber,
+        category: editingBook.category,
+        shelf: editingBook.shelf,
+        copiesTotal: editingBook.copiesTotal,
+        volumes: editingBook.volumes,
+        price: editingBook.price ?? '',
+        publishYear: editingBook.publishYear,
+        edition: editingBook.edition,
+        notes: editingBook.notes,
+      });
+    }
+  }, [editingBook]);
+
+  if (!editingBook) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await updateBook(editingBook.id, {
+      ...form,
+      copiesTotal: Math.max(1, Number(form.copiesTotal) || 1),
+      volumes: Math.max(1, Number(form.volumes) || 1),
+      price: form.price !== '' ? Number(form.price) : null,
+    });
+  };
+
+  return (
+    <div className="modal-backdrop" onClick={() => setEditingBook(null)}>
+      <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+        <div className="section-header">
+          <div className="section-title">
+            {isAr ? 'تعديل بيانات الكتاب' : 'Edit Book Metadata'}
+          </div>
+          <button className="win-ctrl-btn" onClick={() => setEditingBook(null)}>
+            <Icon.Close />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div className="input-group" style={{ gridColumn: 'span 2' }}>
+            <label className="input-label">{isAr ? 'العنوان *' : 'Title *'}</label>
+            <input
+              required
+              className="vertix-input"
+              value={form.title || ''}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+            />
+          </div>
+
+          <div className="input-group">
+            <label className="input-label">{isAr ? 'المؤلف' : 'Author'}</label>
+            <input
+              className="vertix-input"
+              value={form.author || ''}
+              onChange={(e) => setForm({ ...form, author: e.target.value })}
+            />
+          </div>
+
+          <div className="input-group">
+            <label className="input-label">{isAr ? 'دار النشر' : 'Publisher'}</label>
+            <input
+              className="vertix-input"
+              value={form.publisher || ''}
+              onChange={(e) => setForm({ ...form, publisher: e.target.value })}
+            />
+          </div>
+
+          <div className="input-group">
+            <label className="input-label">{isAr ? 'الرقم المرجعي' : 'Reference No.'}</label>
+            <input
+              className="vertix-input"
+              style={{ fontFamily: 'var(--font-mono)', direction: 'ltr' }}
+              value={form.referenceNumber || ''}
+              onChange={(e) => setForm({ ...form, referenceNumber: e.target.value })}
+            />
+          </div>
+
+          <div className="input-group">
+            <label className="input-label">{isAr ? 'التصنيف' : 'Category'}</label>
+            <input
+              className="vertix-input"
+              value={form.category || ''}
+              onChange={(e) => setForm({ ...form, category: e.target.value })}
+            />
+          </div>
+
+          <div className="input-group">
+            <label className="input-label">{isAr ? 'الرف' : 'Shelf'}</label>
+            <input
+              className="vertix-input"
+              value={form.shelf || ''}
+              onChange={(e) => setForm({ ...form, shelf: e.target.value })}
+            />
+          </div>
+
+          <div className="input-group">
+            <label className="input-label">{isAr ? 'السعر' : 'Price'}</label>
+            <input
+              type="number"
+              step="0.01"
+              className="vertix-input"
+              value={form.price ?? ''}
+              onChange={(e) => setForm({ ...form, price: e.target.value })}
+            />
+          </div>
+
+          <div className="input-group">
+            <label className="input-label">{isAr ? 'عدد النسخ' : 'Copies'}</label>
+            <input
+              type="number"
+              min={1}
+              className="vertix-input"
+              value={form.copiesTotal || 1}
+              onChange={(e) => setForm({ ...form, copiesTotal: e.target.value })}
+            />
+          </div>
+
+          <div className="input-group">
+            <label className="input-label">{isAr ? 'عدد الأجزاء' : 'Volumes'}</label>
+            <input
+              type="number"
+              min={1}
+              className="vertix-input"
+              value={form.volumes || 1}
+              onChange={(e) => setForm({ ...form, volumes: e.target.value })}
+            />
+          </div>
+
+          <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
+            <button type="button" className="btn btn-ghost" onClick={() => setEditingBook(null)}>
+              {isAr ? 'إلغاء' : 'Cancel'}
+            </button>
+            <button type="submit" className="btn btn-primary">
+              <Icon.Check />
+              <span>{isAr ? 'حفظ التعديلات' : 'Save Changes'}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+export function BorrowModal() {
+  const { lang, borrowingBook, settings, meta, setBorrowingBook, borrowCopy } = useRaffStore();
+  const isAr = lang === 'ar';
   const [borrowerName, setBorrowerName] = useState('');
   const [contact, setContact] = useState('');
   const [note, setNote] = useState('');
+  const [durationDays, setDurationDays] = useState(settings.loanDurationDays || 30);
   const [loanType, setLoanType] = useState<'full' | 'partial'>('full');
   const [selectedVols, setSelectedVols] = useState<number[]>([]);
-  const [editingRef, setEditingRef] = useState(false);
-  const [refInput, setRefInput] = useState('');
-  const [partReturnMap, setPartReturnMap] = useState<Record<string, number[]>>({});
 
-  if (!book) return null;
+  useEffect(() => {
+    setDurationDays(settings.loanDurationDays || 30);
+    setLoanType('full');
+    setSelectedVols([]);
+  }, [borrowingBook, settings.loanDurationDays]);
 
-  const isAdmin = !auth || auth.mode === 'admin';
-  const avail = computeBookAvailability(book);
+  if (!borrowingBook) return null;
+  const avail = computeBookAvailability(borrowingBook);
 
-  const handleBorrowerChange = (val: string) => {
-    setBorrowerName(val);
-    const prof = (meta?.borrowerProfiles || []).find(
-      (p) => p.name.toLowerCase() === val.trim().toLowerCase()
-    );
-    if (prof && prof.contact && !contact) {
-      setContact(prof.contact);
-    }
-  };
-
-  const toggleVolumeSelection = (v: number) => {
+  const toggleVolume = (v: number) => {
     setSelectedVols((prev) =>
       prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]
     );
   };
 
-  const handleBorrowSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      await borrowCopy(book.id, {
-        borrowerName,
-        contact,
-        note,
-        type: book.volumes > 1 ? loanType : 'full',
-        volumes: loanType === 'partial' ? selectedVols : [],
-      });
-      setBorrowerName('');
-      setContact('');
-      setNote('');
-      setSelectedVols([]);
-    } catch (err: any) {
-      pushToast(err?.message || 'تعذر تسجيل الإعارة', 'error');
-    }
+    if (!borrowerName.trim()) return;
+    await borrowCopy(borrowingBook.id, {
+      borrowerName: borrowerName.trim(),
+      contact: contact.trim(),
+      note: note.trim(),
+      durationDays,
+      type: borrowingBook.volumes > 1 && loanType === 'partial' ? 'partial' : 'full',
+      volumes: selectedVols,
+    });
+    setBorrowerName('');
+    setContact('');
+    setNote('');
   };
 
-  const handleSaveRef = async () => {
-    try {
-      await updateBook(book.id, { referenceNumber: refInput });
-      setEditingRef(false);
-    } catch (err: any) {
-      pushToast(err?.message || 'الرقم المرجعي مستخدم بالفعل', 'error');
+  return (
+    <div className="modal-backdrop" onClick={() => setBorrowingBook(null)}>
+      <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+        <div className="section-header">
+          <div>
+            <div className="section-title">
+              {isAr ? `تسجيل إعارة: ${borrowingBook.title}` : `Borrow Book: ${borrowingBook.title}`}
+            </div>
+            <div className="section-subtitle">{borrowingBook.referenceNumber}</div>
+          </div>
+          <button className="win-ctrl-btn" onClick={() => setBorrowingBook(null)}>
+            <Icon.Close />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="input-group">
+            <label className="input-label">{isAr ? 'اسم المستعير *' : 'Borrower Name *'}</label>
+            <input
+              required
+              list="borrowers-datalist"
+              className="vertix-input"
+              value={borrowerName}
+              onChange={(e) => setBorrowerName(e.target.value)}
+              placeholder={isAr ? 'الاسم الكامل للمستعير...' : 'Borrower full name...'}
+            />
+            <datalist id="borrowers-datalist">
+              {(meta?.borrowers || []).map((br) => (
+                <option key={br} value={br} />
+              ))}
+            </datalist>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div className="input-group">
+              <label className="input-label">{isAr ? 'رقم الجوال / التواصل' : 'Phone / Contact'}</label>
+              <input
+                className="vertix-input"
+                value={contact}
+                onChange={(e) => setContact(e.target.value)}
+                placeholder="05xxxxxxxx"
+              />
+            </div>
+
+            <div className="input-group">
+              <label className="input-label">{isAr ? 'مدة الإعارة (بالأيام)' : 'Duration (Days)'}</label>
+              <input
+                type="number"
+                min={1}
+                max={365}
+                className="vertix-input"
+                value={durationDays}
+                onChange={(e) => setDurationDays(Math.max(1, Number(e.target.value) || 30))}
+              />
+            </div>
+          </div>
+
+          {borrowingBook.volumes > 1 && (
+            <div className="input-group">
+              <label className="input-label">{isAr ? 'نطاق الإعارة' : 'Loan Scope'}</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  className={`btn ${loanType === 'full' ? 'btn-primary' : 'btn-ghost'}`}
+                  onClick={() => setLoanType('full')}
+                >
+                  {isAr ? 'نسخة كاملة بجميع الأجزاء' : 'Full Copy (All Volumes)'}
+                </button>
+                <button
+                  type="button"
+                  className={`btn ${loanType === 'partial' ? 'btn-primary' : 'btn-ghost'}`}
+                  onClick={() => setLoanType('partial')}
+                >
+                  {isAr ? 'إعارة أجزاء محددة فقط' : 'Select Specific Volumes'}
+                </button>
+              </div>
+
+              {loanType === 'partial' && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                  {Array.from({ length: borrowingBook.volumes }, (_, i) => i + 1).map((v) => {
+                    const isAvail = avail.availableVolumes.includes(v);
+                    const picked = selectedVols.includes(v);
+                    return (
+                      <button
+                        key={v}
+                        type="button"
+                        disabled={!isAvail}
+                        onClick={() => toggleVolume(v)}
+                        className={`btn ${picked ? 'btn-primary' : 'btn-ghost'}`}
+                        style={{ height: 28, padding: '0 10px' }}
+                      >
+                        {isAr ? `ج ${v}` : `Vol ${v}`}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="input-group">
+            <label className="input-label">{isAr ? 'ملاحظات الإعارة' : 'Loan Notes'}</label>
+            <input
+              className="vertix-input"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
+            <button type="button" className="btn btn-ghost" onClick={() => setBorrowingBook(null)}>
+              {isAr ? 'إلغاء' : 'Cancel'}
+            </button>
+            <button type="submit" className="btn btn-primary">
+              <Icon.Check />
+              <span>{isAr ? 'تأكيد الإعارة' : 'Confirm Loan'}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+export function ReturnLoanModal() {
+  const { lang, returningBook, setReturningBook, returnLoan, returnLoanParts } = useRaffStore();
+  const isAr = lang === 'ar';
+  const [selectedLoanId, setSelectedLoanId] = useState<string>('');
+  const [selectedVols, setSelectedVols] = useState<number[]>([]);
+
+  useEffect(() => {
+    if (returningBook) {
+      const openLoans = (returningBook.book.loans || []).filter(isLoanActive);
+      const target = returningBook.loanId || openLoans[0]?.id || '';
+      setSelectedLoanId(target);
+      const ln = openLoans.find((l) => l.id === target);
+      if (ln && ln.type === 'partial') {
+        setSelectedVols(getLoanOutstandingVolumes(ln));
+      } else {
+        setSelectedVols([]);
+      }
+    }
+  }, [returningBook]);
+
+  if (!returningBook) return null;
+  const openLoans = (returningBook.book.loans || []).filter(isLoanActive);
+  const currentLoan = openLoans.find((l) => l.id === selectedLoanId) || openLoans[0];
+
+  if (!currentLoan) return null;
+  const outstandingVols = getLoanOutstandingVolumes(currentLoan);
+
+  const handleConfirm = async () => {
+    if (
+      currentLoan.type === 'partial' &&
+      selectedVols.length > 0 &&
+      selectedVols.length < outstandingVols.length
+    ) {
+      await returnLoanParts(returningBook.book.id, currentLoan.id, selectedVols);
+    } else {
+      await returnLoan(returningBook.book.id, currentLoan.id);
     }
   };
 
   return (
-    <div className="modal-backdrop" onClick={() => setSelectedBookId(null)}>
+    <div className="modal-backdrop" onClick={() => setReturningBook(null)}>
       <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            gap: '12px',
-          }}
-        >
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {!editingRef ? (
-                <span
-                  className="ref-mono-pill"
-                  style={{ cursor: isAdmin ? 'pointer' : 'default' }}
-                  onClick={() => {
-                    if (isAdmin) {
-                      setRefInput(book.referenceNumber);
-                      setEditingRef(true);
-                    }
-                  }}
-                >
-                  {book.referenceNumber}
-                </span>
-              ) : (
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  <input
-                    className="vertix-input"
-                    style={{ width: '130px', padding: '4px 8px', direction: 'ltr' }}
-                    value={refInput}
-                    onChange={(e) => setRefInput(e.target.value)}
-                  />
-                  <button className="btn-primary-orange" onClick={handleSaveRef}>
-                    حفظ
-                  </button>
-                </div>
-              )}
-              <span className={`status-badge ${avail.state}`}>
-                {avail.state === 'available'
-                  ? 'متاح'
-                  : avail.state === 'partial'
-                  ? 'مستعار جزئياً'
-                  : 'مستعار بالكامل'}
-              </span>
-            </div>
-            <h2
-              style={{
-                fontFamily: 'var(--font-serif)',
-                fontSize: '24px',
-                fontWeight: 700,
-                lineHeight: 1.38,
-                marginTop: '8px',
-              }}
-            >
-              {book.title}
-            </h2>
-            <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)' }}>
-              {book.author || '—'} · {book.publisher || '—'} · {book.category || '—'}
-            </p>
+        <div className="section-header">
+          <div className="section-title">
+            {isAr ? `إرجاع إعارة: ${returningBook.book.title}` : `Return Loan: ${returningBook.book.title}`}
           </div>
-
-          <button className="btn-soft" onClick={() => setSelectedBookId(null)}>
-            إغلاق
+          <button className="win-ctrl-btn" onClick={() => setReturningBook(null)}>
+            <Icon.Close />
           </button>
         </div>
 
-        {/* Metadata Chips & Barcode */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '14px',
-            background: 'var(--bg-surface-muted)',
-            padding: '14px 18px',
-            borderRadius: '18px',
-          }}
-        >
-          <div className="book-card-meta-strip">
-            <span className="meta-chip">
-              النسخ المتاحة: {avail.availableCopies}/{avail.copiesTotal}
-            </span>
-            <span className="meta-chip">عدد الأجزاء: {book.volumes}</span>
-            {book.shelf && <span className="meta-chip">الرف: {book.shelf}</span>}
-            {book.edition && <span className="meta-chip">الطبعة: {book.edition}</span>}
-            {book.publishYear && <span className="meta-chip">السنة: {book.publishYear}</span>}
-            {isAdmin && book.price && (
-              <span className="meta-chip">السعر: {book.price} ر.س</span>
-            )}
+        {openLoans.length > 1 && (
+          <div className="input-group" style={{ marginBottom: 10 }}>
+            <label className="input-label">{isAr ? 'اختر المستعير' : 'Select Borrower'}</label>
+            <select
+              className="vertix-select"
+              value={currentLoan.id}
+              onChange={(e) => setSelectedLoanId(e.target.value)}
+            >
+              {openLoans.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.borrowerName} ({loanScopeLabel(l, true) || (isAr ? 'نسخة كاملة' : 'Full Copy')})
+                </option>
+              ))}
+            </select>
           </div>
-          <div
-            className="barcode-preview-plate"
-            dangerouslySetInnerHTML={{
-              __html: renderBarcodeSVG(book.referenceNumber, {
-                height: 36,
-                moduleWidth: 1.5,
-              }),
-            }}
-          />
-        </div>
+        )}
 
-        {/* Multi-Volume Availability Strip */}
-        {book.volumes > 1 && (
-          <div>
-            <div style={{ fontSize: '12.5px', fontWeight: 700, marginBottom: '8px' }}>
-              خريطة توفر الأجزاء ({avail.availableVolumes.length} متاح من {book.volumes}):
-            </div>
-            <div className="volumes-strip">
-              {Array.from({ length: book.volumes }, (_, idx) => idx + 1).map((v) => {
-                const free = avail.availableVolumes.includes(v);
+        {currentLoan.type === 'partial' && outstandingVols.length > 1 && (
+          <div className="input-group" style={{ marginBottom: 12 }}>
+            <label className="input-label">
+              {isAr ? 'الأجزاء المراد إرجاعها الآن:' : 'Select Volumes to Return:'}
+            </label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {outstandingVols.map((v) => {
+                const picked = selectedVols.includes(v);
                 return (
-                  <span key={v} className={`vol-pill ${free ? 'free' : 'busy'}`}>
-                    الجزء {v} ({free ? 'متاح' : 'مستعار'})
-                  </span>
+                  <button
+                    key={v}
+                    type="button"
+                    className={`btn ${picked ? 'btn-primary' : 'btn-ghost'}`}
+                    onClick={() =>
+                      setSelectedVols((prev) =>
+                        prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]
+                      )
+                    }
+                  >
+                    {isAr ? `الجزء ${v}` : `Volume ${v}`}
+                  </button>
                 );
               })}
             </div>
           </div>
         )}
 
-        {/* Active Loans & Progressive Volume Return (Admin Only) */}
-        {isAdmin && avail.activeLoans.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <h3 style={{ fontSize: '15px', fontWeight: 800 }}>
-              الإعارات النشطة حالياً ({avail.activeLoans.length})
-            </h3>
-            {avail.activeLoans.map((l) => {
-              const outstanding = getLoanOutstandingVolumes(l);
-              const pickedForReturn = partReturnMap[l.id] || [];
-              return (
-                <div
-                  key={l.id}
-                  style={{
-                    background: 'var(--bg-surface-muted)',
-                    padding: '14px 16px',
-                    borderRadius: '16px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '10px',
-                  }}
-                >
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      flexWrap: 'wrap',
-                      gap: '10px',
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 800, fontSize: '14px' }}>
-                        المستعير: {l.borrowerName}{' '}
-                        {l.contact ? `(${l.contact})` : ''}
-                      </div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                        النطاق المتبقي: {loanScopeLabel(l, true) || 'نسخة كاملة'} · الاستحقاق:{' '}
-                        {l.dueAt?.slice(0, 10)}
-                      </div>
-                    </div>
-                    <button
-                      className="btn-primary-orange"
-                      style={{ padding: '7px 14px', fontSize: '12px' }}
-                      onClick={() => returnLoan(book.id, l.id)}
-                    >
-                      إرجاع الإعارة بالكامل
-                    </button>
-                  </div>
-
-                  {/* Progressive Partial Volume Return Picker */}
-                  {l.type === 'partial' && outstanding.length > 1 && (
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        flexWrap: 'wrap',
-                        gap: '8px',
-                        paddingTop: '8px',
-                        borderTop: '1px solid var(--border-subtle)',
-                      }}
-                    >
-                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                        {outstanding.map((v) => {
-                          const checked = pickedForReturn.includes(v);
-                          return (
-                            <button
-                              key={v}
-                              type="button"
-                              className={checked ? 'btn-obsidian' : 'btn-soft'}
-                              style={{ padding: '4px 10px', fontSize: '11.5px' }}
-                              onClick={() => {
-                                const next = checked
-                                  ? pickedForReturn.filter((x) => x !== v)
-                                  : [...pickedForReturn, v];
-                                setPartReturnMap({ ...partReturnMap, [l.id]: next });
-                              }}
-                            >
-                              إرجاع ج{v}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      {pickedForReturn.length > 0 && (
-                        <button
-                          className="btn-obsidian"
-                          style={{ padding: '6px 12px', fontSize: '11.5px' }}
-                          onClick={async () => {
-                            await returnLoanParts(book.id, l.id, pickedForReturn);
-                            setPartReturnMap({ ...partReturnMap, [l.id]: [] });
-                          }}
-                        >
-                          تأكيد إرجاع الأجزاء المحددة ({pickedForReturn.length})
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* New Borrow Form (Admin Only & if copies/volumes available) */}
-        {isAdmin && avail.availableCopies > 0 && (
-          <form
-            onSubmit={handleBorrowSubmit}
-            style={{
-              background: 'var(--bg-surface-muted)',
-              padding: '16px 18px',
-              borderRadius: '18px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-            }}
-          >
-            <h3 style={{ fontSize: '15px', fontWeight: 800 }}>تسجيل إعارة جديدة</h3>
-            <div className="form-grid">
-              <div className="field-group">
-                <label>اسم المستعير *</label>
-                <input
-                  className="vertix-input"
-                  required
-                  list="raff-borrowers-list"
-                  value={borrowerName}
-                  onChange={(e) => handleBorrowerChange(e.target.value)}
-                  placeholder="اسم الباحث أو المستعير..."
-                />
-                <datalist id="raff-borrowers-list">
-                  {(meta?.borrowers || []).map((b) => (
-                    <option key={b} value={b} />
-                  ))}
-                </datalist>
-              </div>
-              <div className="field-group">
-                <label>وسيلة التواصل (يُملأ تلقائياً للمستعير السابق)</label>
-                <input
-                  className="vertix-input"
-                  value={contact}
-                  onChange={(e) => setContact(e.target.value)}
-                  placeholder="05XXXXXXXX"
-                />
-              </div>
-            </div>
-
-            {book.volumes > 1 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button
-                    type="button"
-                    className={loanType === 'full' ? 'btn-obsidian' : 'btn-soft'}
-                    onClick={() => setLoanType('full')}
-                  >
-                    إعارة النسخة كاملة ({book.volumes} أجزاء)
-                  </button>
-                  <button
-                    type="button"
-                    className={loanType === 'partial' ? 'btn-obsidian' : 'btn-soft'}
-                    onClick={() => setLoanType('partial')}
-                  >
-                    إعارة أجزاء محددة فقط
-                  </button>
-                </div>
-
-                {loanType === 'partial' && (
-                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                    {avail.availableVolumes.map((v) => (
-                      <button
-                        key={v}
-                        type="button"
-                        className={selectedVols.includes(v) ? 'btn-primary-orange' : 'btn-soft'}
-                        style={{ padding: '5px 11px', fontSize: '12px' }}
-                        onClick={() => toggleVolumeSelection(v)}
-                      >
-                        الجزء {v}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <input
-                className="vertix-input"
-                style={{ maxWidth: '340px' }}
-                placeholder="ملاحظة على الإعارة (اختياري)..."
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-              />
-              <button type="submit" className="btn-primary-orange">
-                تأكيد الإعارة
-              </button>
-            </div>
-          </form>
-        )}
-
-        {/* Footer Actions */}
-        {isAdmin && (
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              paddingTop: '8px',
-              borderTop: '1px solid var(--border-subtle)',
-            }}
-          >
-            <button
-              className="btn-soft"
-              onClick={() => {
-                setEditingBook(book);
-                setSelectedBookId(null);
-                setActiveTab('add');
-              }}
-            >
-              تعديل بيانات الكتاب
-            </button>
-            <button
-              className="btn-soft"
-              style={{ color: 'var(--status-borrowed)' }}
-              onClick={async () => {
-                try {
-                  await removeBook(book.id);
-                } catch (err: any) {
-                  pushToast(err?.message || 'لا يمكن حذف الكتاب', 'error');
-                }
-              }}
-            >
-              نقل إلى سلة المهملات
-            </button>
-          </div>
-        )}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <button className="btn btn-ghost" onClick={() => setReturningBook(null)}>
+            {isAr ? 'إلغاء' : 'Cancel'}
+          </button>
+          <button className="btn btn-primary" onClick={handleConfirm}>
+            <Icon.Check />
+            <span>{isAr ? 'تأكيد الإرجاع' : 'Confirm Return'}</span>
+          </button>
+        </div>
       </div>
     </div>
   );
-};
+}
 
-export const AdminLoginModal: React.FC = () => {
-  const show = useRaffStore((s) => s.showLoginModal);
-  const auth = useRaffStore((s) => s.auth);
-  const setShow = useRaffStore((s) => s.setShowLoginModal);
-  const loginAdmin = useRaffStore((s) => s.loginAdmin);
+export function BulkUpdateModal() {
+  const { lang, bulkModalOpen, selectedBookIds, setBulkModalOpen, bulkUpdateBooks } =
+    useRaffStore();
+  const isAr = lang === 'ar';
+  const [category, setCategory] = useState('');
+  const [shelf, setShelf] = useState('');
+  const [publisher, setPublisher] = useState('');
 
+  if (!bulkModalOpen) return null;
+
+  return (
+    <div className="modal-backdrop" onClick={() => setBulkModalOpen(false)}>
+      <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+        <div className="section-header">
+          <div className="section-title">
+            {isAr
+              ? `تعديل جماعي (${selectedBookIds.length} كتاب)`
+              : `Bulk Edit (${selectedBookIds.length} Books)`}
+          </div>
+          <button className="win-ctrl-btn" onClick={() => setBulkModalOpen(false)}>
+            <Icon.Close />
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="input-group">
+            <label className="input-label">{isAr ? 'توحيد التصنيف' : 'Set Category'}</label>
+            <input
+              className="vertix-input"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+            />
+          </div>
+          <div className="input-group">
+            <label className="input-label">{isAr ? 'توحيد موقع الرف' : 'Set Shelf'}</label>
+            <input
+              className="vertix-input"
+              value={shelf}
+              onChange={(e) => setShelf(e.target.value)}
+            />
+          </div>
+          <div className="input-group">
+            <label className="input-label">{isAr ? 'توحيد دار النشر' : 'Set Publisher'}</label>
+            <input
+              className="vertix-input"
+              value={publisher}
+              onChange={(e) => setPublisher(e.target.value)}
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
+            <button className="btn btn-ghost" onClick={() => setBulkModalOpen(false)}>
+              {isAr ? 'إلغاء' : 'Cancel'}
+            </button>
+            <button
+              className="btn btn-primary"
+              onClick={() =>
+                bulkUpdateBooks({
+                  ...(category ? { category } : {}),
+                  ...(shelf ? { shelf } : {}),
+                  ...(publisher ? { publisher } : {}),
+                })
+              }
+            >
+              {isAr ? 'تطبيق التعديلات' : 'Apply Bulk Update'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function LabelPreviewModal() {
+  const { lang, labelPreviewBook, settings, setLabelPreviewBook } = useRaffStore();
+  const isAr = lang === 'ar';
+
+  if (!labelPreviewBook) return null;
+  const svg = renderBarcodeSVG(labelPreviewBook.referenceNumber, {
+    height: 48,
+    moduleWidth: 1.8,
+    color: '#111111',
+    background: '#ffffff',
+  });
+
+  const handlePrintSingle = () => {
+    const win = window.open('', '_blank', 'width=520,height=420');
+    if (win) {
+      win.document.write(`<!DOCTYPE html>
+        <html dir="rtl" lang="ar">
+        <body style="font-family:system-ui,sans-serif;text-align:center;padding:24px;">
+          <div style="border:1px solid #ccc;border-radius:10px;padding:16px;display:inline-block;">
+            <div style="font-size:11px;color:#555;font-weight:700;">${
+              settings.institutionName || 'مكتبة رَفّ'
+            }</div>
+            <div style="font-size:15px;font-weight:700;margin:4px 0;">${
+              labelPreviewBook.title
+            }</div>
+            <div>${svg}</div>
+          </div>
+          <script>window.onload=function(){window.print();};</script>
+        </body></html>`);
+      win.document.close();
+    }
+  };
+
+  return (
+    <div className="modal-backdrop" onClick={() => setLabelPreviewBook(null)}>
+      <div className="modal-card" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
+        <div className="section-header">
+          <div className="section-title">
+            {isAr ? 'معاينة وطباعة ملصق الباركود' : 'Barcode Label Preview'}
+          </div>
+          <button className="win-ctrl-btn" onClick={() => setLabelPreviewBook(null)}>
+            <Icon.Close />
+          </button>
+        </div>
+
+        <div
+          style={{
+            background: '#ffffff',
+            color: '#111111',
+            borderRadius: 12,
+            padding: 16,
+            textAlign: 'center',
+            border: '1px solid var(--border-strong)',
+          }}
+        >
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#555' }}>
+            {settings.institutionName || (isAr ? 'مكتبة رَفّ' : 'RAFF Library')}
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 700, margin: '4px 0' }}>
+            {labelPreviewBook.title}
+          </div>
+          <div
+            style={{ display: 'flex', justifyContent: 'center', marginTop: 8 }}
+            dangerouslySetInnerHTML={{ __html: svg }}
+          />
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 14 }}>
+          <button className="btn btn-ghost" onClick={() => setLabelPreviewBook(null)}>
+            {isAr ? 'إغلاق' : 'Close'}
+          </button>
+          <button className="btn btn-primary" onClick={handlePrintSingle}>
+            <Icon.Printer />
+            <span>{isAr ? 'طباعة الملصق الآن' : 'Print Label Now'}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function AdminLoginModal() {
+  const {
+    lang,
+    auth,
+    adminLoginModalOpen,
+    setAdminLoginModalOpen,
+    loginAdmin,
+    recoverAdminPassword,
+  } = useRaffStore();
+  const isAr = lang === 'ar';
   const [password, setPassword] = useState('');
-  const [capsLock, setCapsLock] = useState(false);
+  const [recoverMode, setRecoverMode] = useState(false);
+  const [answer, setAnswer] = useState('');
+  const [newPassword, setNewPassword] = useState('');
 
-  if (!show) return null;
+  if (!adminLoginModalOpen) return null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     const ok = await loginAdmin(password);
     if (ok) setPassword('');
   };
 
-  return (
-    <div className="modal-backdrop" onClick={() => setShow(false)}>
-      <div
-        className="modal-card"
-        style={{ maxWidth: '440px' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div className="kpi-icon-badge">
-              <Icon.Lock />
-            </div>
-            <div>
-              <h2 style={{ fontSize: '18px', fontWeight: 800 }}>فتح وضع الإدارة</h2>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                محمي بتشفير Scrypt · المحاولات المتبقية: {auth?.remainingAttempts ?? 5}
-              </p>
-            </div>
-          </div>
-          <button className="btn-soft" onClick={() => setShow(false)}>
-            إغلاق
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <div className="field-group">
-            <label>كلمة مرور المسؤول</label>
-            <input
-              type="password"
-              className="vertix-input"
-              autoFocus
-              value={password}
-              onKeyUp={(e) => setCapsLock(e.getModifierState('CapsLock'))}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="أدخل كلمة المرور..."
-            />
-          </div>
-
-          {capsLock && (
-            <span className="status-badge partial">تنبيه: مفتاح Caps Lock قيد التشغيل</span>
-          )}
-
-          <button type="submit" className="btn-primary-orange" style={{ justifyContent: 'center' }}>
-            دخول إلى وضع الإدارة
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-export const PrintCenterModal: React.FC = () => {
-  const show = useRaffStore((s) => s.showPrintModal);
-  const title = useRaffStore((s) => s.printTitle);
-  const html = useRaffStore((s) => s.printHtmlContent);
-  const close = useRaffStore((s) => s.closePrintCenter);
-  const iframeRef = useRef<HTMLIFrameElement | null>(null);
-
-  if (!show) return null;
-
-  const handlePrint = () => {
-    iframeRef.current?.contentWindow?.print();
+  const handleRecover = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const ok = await recoverAdminPassword(answer, newPassword);
+    if (ok) {
+      setRecoverMode(false);
+      setAnswer('');
+      setNewPassword('');
+    }
   };
 
   return (
-    <div className="modal-backdrop" onClick={close}>
-      <div
-        className="modal-card"
-        style={{ maxWidth: '960px', height: '86vh' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <h2 style={{ fontSize: '18px', fontWeight: 800 }}>{title}</h2>
-            <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-              مركز الطباعة والتصدير الفوري إلى PDF — مكتبة رف 4.0
-            </p>
+    <div className="modal-backdrop" onClick={() => setAdminLoginModalOpen(false)}>
+      <div className="modal-card" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
+        <div className="section-header">
+          <div className="section-title">
+            <Icon.Lock style={{ color: 'var(--brand-accent)' }} />
+            <span>
+              {recoverMode
+                ? isAr
+                  ? 'استرداد كلمة مرور المسؤول'
+                  : 'Recover Admin Password'
+                : isAr
+                ? 'فتح وضع الإدارة'
+                : 'Unlock Admin Mode'}
+            </span>
           </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button className="btn-primary-orange" onClick={handlePrint}>
-              <Icon.Printer />
-              <span>طباعة / حفظ كملف PDF</span>
-            </button>
-            <button className="btn-soft" onClick={close}>
-              إغلاق
-            </button>
-          </div>
+          <button className="win-ctrl-btn" onClick={() => setAdminLoginModalOpen(false)}>
+            <Icon.Close />
+          </button>
         </div>
 
-        <iframe
-          ref={iframeRef}
-          title={title}
-          srcDoc={html}
-          style={{
-            flex: 1,
-            width: '100%',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: '18px',
-            background: '#ffffff',
-          }}
-        />
+        {!recoverMode ? (
+          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div className="input-group">
+              <label className="input-label">
+                {isAr ? 'أدخل كلمة مرور المسؤول' : 'Enter Admin Password'}
+              </label>
+              <input
+                autoFocus
+                type="password"
+                className="vertix-input"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              {auth?.recoveryConfigured ? (
+                <button
+                  type="button"
+                  onClick={() => setRecoverMode(true)}
+                  style={{
+                    border: 'none',
+                    background: 'transparent',
+                    color: 'var(--brand-accent)',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {isAr ? 'نسيت كلمة المرور؟' : 'Forgot password?'}
+                </button>
+              ) : (
+                <span />
+              )}
+
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => setAdminLoginModalOpen(false)}
+                >
+                  {isAr ? 'إلغاء' : 'Cancel'}
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  {isAr ? 'دخول الإدارة' : 'Unlock'}
+                </button>
+              </div>
+            </div>
+          </form>
+        ) : (
+          <form onSubmit={handleRecover} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 600 }}>
+              {isAr ? 'سؤال الأمان:' : 'Security Question:'} "{auth.recoveryQuestion}"
+            </div>
+            <input
+              required
+              className="vertix-input"
+              placeholder={isAr ? 'إجابة سؤال الأمان...' : 'Security answer...'}
+              value={answer}
+              onChange={(e) => setAnswer(e.target.value)}
+            />
+            <input
+              required
+              type="password"
+              className="vertix-input"
+              placeholder={isAr ? 'كلمة المرور الجديدة...' : 'New password...'}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => setRecoverMode(false)}
+              >
+                {isAr ? 'رجوع' : 'Back'}
+              </button>
+              <button type="submit" className="btn btn-primary">
+                {isAr ? 'تعيين وفتح الإدارة' : 'Reset & Unlock'}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
-};
+}

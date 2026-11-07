@@ -1,474 +1,523 @@
-import React, { useMemo, useState } from 'react';
+import React from 'react';
 import { useRaffStore } from '../store/useRaffStore';
 import { translations } from '../i18n/translations';
 import { Icon } from '../components/Icons';
 import { computeBookAvailability } from '../lib/domain';
 
-export const OverviewView: React.FC = () => {
-  const lang = useRaffStore((s) => s.lang);
-  const stats = useRaffStore((s) => s.stats);
-  const books = useRaffStore((s) => s.books);
-  const activity = useRaffStore((s) => s.activity);
-  const setActiveTab = useRaffStore((s) => s.setActiveTab);
-  const setSelectedBookId = useRaffStore((s) => s.setSelectedBookId);
-  const setSearchStatus = useRaffStore((s) => s.setSearchStatus);
-  const loadLoansCenter = useRaffStore((s) => s.loadLoansCenter);
-
-  const [chartMode, setChartMode] = useState<'category' | 'publisher'>('category');
+export function OverviewView() {
+  const {
+    lang,
+    stats,
+    books,
+    activity,
+    setActiveTab,
+    setInspectedBook,
+    setCategoryFilter,
+    exportLibrary,
+    pushToast,
+  } = useRaffStore();
   const t = translations[lang];
 
-  const totalCopies = stats?.totalCopies || 1;
-  const availPct = Math.round(((stats?.availableCopies || 0) / totalCopies) * 100);
-  const borrowedPct = Math.max(0, 100 - availPct);
+  const categories = Object.entries(stats?.byCategory || {})
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6);
+  const maxCatCount = Math.max(1, ...categories.map(([, c]) => c));
 
-  const chartData = useMemo(() => {
-    const map = chartMode === 'category' ? stats?.byCategory || {} : stats?.byPublisher || {};
-    const entries = Object.entries(map)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 7);
-    const maxVal = Math.max(1, ...entries.map((e) => e[1]));
-    return entries.map(([label, count], idx) => ({
-      label,
-      count,
-      heightPct: Math.max(22, Math.round((count / maxVal) * 100)),
-      highlight: idx === 0,
-    }));
-  }, [stats, chartMode]);
+  const totalCopies = stats?.totalCopies || 0;
+  const availableCopies = stats?.availableCopies || 0;
+  const borrowedCopies = stats?.borrowedCopies || 0;
 
-  const recentBooks = useMemo(() => books.slice(0, 6), [books]);
+  // Fixed calculation: when totalCopies === 0, both percentages are 0% (never 100% borrowed!)
+  const availPct = totalCopies > 0 ? Math.round((availableCopies / totalCopies) * 100) : 0;
+  const borrowedPct = totalCopies > 0 ? Math.round((borrowedCopies / totalCopies) * 100) : 0;
+
+  const recentBooks = books.slice(0, 8);
+  const fmt = (n: number | undefined | null) => Number(n || 0).toLocaleString('en-US');
+
+  const handleQuickPrint = async () => {
+    const html = await exportLibrary('html');
+    const win = window.open('', '_blank', 'width=1024,height=768');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+    } else {
+      pushToast(
+        'info',
+        lang === 'ar'
+          ? 'تم تجهيز التقرير المطبوع'
+          : 'Printable report generated'
+      );
+    }
+  };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-      {/* Top Page Title & Action Pills */}
-      <div className="stage-header-row">
-        <div className="stage-title-group">
-          <div className="stage-title-icon">
-            <Icon.Grid />
+    <div className="stage-view">
+      <div className="overview-viewport-grid">
+        {/* Row 1: Hero Collection Banner + Quick Actions & Valuation */}
+        <div className="overview-top-row">
+          <div className="hero-card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+              <div>
+                <div className="hero-badge">
+                  <Icon.Sparkles style={{ width: 13, height: 13 }} />
+                  <span>
+                    {lang === 'ar'
+                      ? 'رَفّ 4.0 · إدارة ذكية وفورية للمقتنيات'
+                      : 'RAFF 4.0 · Intelligent Library Suite'}
+                  </span>
+                </div>
+                <h2 className="hero-title" style={{ marginTop: 6 }}>{t.heroTitle}</h2>
+                <p className="hero-subtitle">{t.heroSubtitle}</p>
+              </div>
+              <button
+                className="btn"
+                style={{
+                  background: 'rgba(216, 174, 104, 0.2)',
+                  borderColor: 'rgba(216, 174, 104, 0.45)',
+                  color: '#fff',
+                  height: 30,
+                  fontSize: 11.5,
+                }}
+                onClick={() => setActiveTab('add')}
+              >
+                <Icon.Plus style={{ width: 14, height: 14 }} />
+                <span>{t.quickAddBook}</span>
+              </button>
+            </div>
+
+            <div className="hero-metrics-strip">
+              <div className="hero-metric-box">
+                <div className="val">{fmt(stats?.totalBooks)}</div>
+                <div className="lbl">{t.totalBooks}</div>
+              </div>
+              <div className="hero-metric-box">
+                <div className="val">{fmt(totalCopies)}</div>
+                <div className="lbl">{t.totalCopies}</div>
+              </div>
+              <div className="hero-metric-box">
+                <div className="val" style={{ color: '#86efac' }}>{fmt(availableCopies)}</div>
+                <div className="lbl">{t.availableCopies}</div>
+              </div>
+              <div className="hero-metric-box">
+                <div className="val" style={{ color: '#f3d299' }}>{fmt(stats?.completeness)}%</div>
+                <div className="lbl">{t.catalogueQuality}</div>
+              </div>
+            </div>
           </div>
-          <div>
-            <h1 className="stage-title">{t.navOverview}</h1>
-            <p className="stage-subtitle">{t.heroSubtitle}</p>
+
+          <div className="quick-actions-card">
+            <div className="section-header" style={{ marginBottom: 4 }}>
+              <div>
+                <div className="section-title">
+                  {lang === 'ar' ? 'الوصول السريع والقيمة التقديرية' : 'Quick Actions & Valuation'}
+                </div>
+                <div className="section-subtitle">
+                  {lang === 'ar'
+                    ? `${fmt(stats?.totalAuthors)} مؤلف · ${fmt(stats?.totalPublishers)} دار نشر · ${fmt(stats?.totalCategories)} تصنيف`
+                    : `${fmt(stats?.totalAuthors)} Authors · ${fmt(stats?.totalPublishers)} Publishers · ${fmt(stats?.totalCategories)} Categories`}
+                </div>
+              </div>
+              <div style={{ textAlign: 'end' }}>
+                <div
+                  style={{
+                    fontFamily: 'var(--font-numeric)',
+                    fontSize: 16,
+                    fontWeight: 700,
+                    color: 'var(--brand-accent)',
+                  }}
+                >
+                  {fmt(stats?.totalValue)} <span style={{ fontSize: 11 }}>{t.currency}</span>
+                </div>
+                <div style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>{t.collectionValue}</div>
+              </div>
+            </div>
+
+            <div className="quick-actions-grid">
+              <button className="quick-action-tile" onClick={() => setActiveTab('add')}>
+                <div className="quick-action-icon"><Icon.Plus /></div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 12 }}>{t.quickAddBook}</div>
+                  <div style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>
+                    {lang === 'ar' ? 'ترقيم وتوليد باركود' : 'Auto reference & barcode'}
+                  </div>
+                </div>
+              </button>
+
+              <button className="quick-action-tile" onClick={() => setActiveTab('scanner')}>
+                <div className="quick-action-icon"><Icon.Barcode /></div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 12 }}>{t.quickScanBarcode}</div>
+                  <div style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>
+                    {lang === 'ar' ? 'إعارة وإرجاع وملصقات' : 'Scan, circulate & print'}
+                  </div>
+                </div>
+              </button>
+
+              <button className="quick-action-tile" onClick={() => setActiveTab('loans')}>
+                <div className="quick-action-icon"><Icon.Users /></div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 12 }}>{t.quickLoansCenter}</div>
+                  <div style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>
+                    {lang === 'ar'
+                      ? `${fmt(stats?.activeBorrowers)} مستعير نشط`
+                      : `${fmt(stats?.activeBorrowers)} active borrowers`}
+                  </div>
+                </div>
+              </button>
+
+              <button className="quick-action-tile" onClick={handleQuickPrint}>
+                <div className="quick-action-icon"><Icon.Printer /></div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 12 }}>{t.quickExportPdf}</div>
+                  <div style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>
+                    {lang === 'ar' ? 'كشف مطبوع جاهز' : 'Printable PDF/HTML'}
+                  </div>
+                </div>
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className="stage-header-controls">
-          <button
-            className="btn-soft"
-            onClick={() => setActiveTab('scanner')}
-          >
-            <Icon.Barcode />
-            <span>{t.quickScanBarcode}</span>
-          </button>
-          <button
-            className="btn-soft"
-            onClick={() => setActiveTab('loans')}
-          >
-            <Icon.Users />
-            <span>{t.quickLoansCenter}</span>
-          </button>
-          <button
-            className="btn-primary-orange"
-            onClick={() => setActiveTab('add')}
-          >
-            <Icon.Plus />
-            <span>{t.quickAddBook}</span>
-          </button>
-        </div>
-      </div>
+        {/* Row 2: 4 Compact KPI Cards + Availability Bar */}
+        <div className="overview-kpi-row">
+          <div className="stat-card" onClick={() => setActiveTab('catalogue')} style={{ cursor: 'pointer' }}>
+            <div>
+              <div className="stat-label">{t.availableCopies}</div>
+              <div className="stat-value" style={{ color: 'var(--emerald)' }}>{fmt(availableCopies)}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                {availPct}% {lang === 'ar' ? 'من إجمالي النسخ' : 'of total copies'}
+              </div>
+            </div>
+            <span className="status-badge status-available">{availPct}%</span>
+          </div>
 
-      {/* Overdue Alert Strip (if any overdue loans exist) */}
-      {(stats?.overdueLoans || 0) > 0 && (
-        <div
-          className="vertix-card"
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '14px 20px',
-            borderColor: 'var(--status-borrowed-border)',
-            background: 'var(--status-borrowed-soft)',
-            color: 'var(--status-borrowed)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span className="status-badge borrowed">تنبيه استحقاق</span>
-            <span style={{ fontWeight: 700, fontSize: '13.5px' }}>
-              يوجد حالياً {stats?.overdueLoans} إعارة متأخرة عن موعد التسليم المحدد
-              {stats?.dueSoonLoans ? ` و ${stats.dueSoonLoans} تستحق خلال 3 أيام.` : '.'}
+          <div className="stat-card" onClick={() => setActiveTab('loans')} style={{ cursor: 'pointer' }}>
+            <div>
+              <div className="stat-label">{t.borrowedCopies}</div>
+              <div className="stat-value" style={{ color: 'var(--amber)' }}>{fmt(borrowedCopies)}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                {lang === 'ar'
+                  ? `${fmt(stats?.partiallyBorrowed)} جزئي · ${fmt(stats?.fullyBorrowed)} كامل`
+                  : `${fmt(stats?.partiallyBorrowed)} partial · ${fmt(stats?.fullyBorrowed)} full`}
+              </div>
+            </div>
+            <span className="status-badge status-partial">{borrowedPct}%</span>
+          </div>
+
+          <div className="stat-card" onClick={() => setActiveTab('loans')} style={{ cursor: 'pointer' }}>
+            <div>
+              <div className="stat-label">{t.activeBorrowers}</div>
+              <div className="stat-value">{fmt(stats?.activeBorrowers)}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                {lang === 'ar'
+                  ? `${fmt(stats?.dueSoonLoans)} تستحق قريباً`
+                  : `${fmt(stats?.dueSoonLoans)} due within 3 days`}
+              </div>
+            </div>
+            <span className="status-badge" style={{ background: 'var(--indigo-bg)', color: 'var(--indigo)' }}>
+              {fmt(stats?.multiVolumeTitles)} {lang === 'ar' ? 'متعدد الأجزاء' : 'Multi-vol'}
             </span>
           </div>
-          <button
-            className="btn-obsidian"
-            style={{ padding: '7px 14px', fontSize: '12px' }}
-            onClick={() => {
-              loadLoansCenter('overdue');
-              setActiveTab('loans');
-            }}
-          >
-            مراجعة المتأخرات الآن
-          </button>
-        </div>
-      )}
 
-      {/* Primary 3-Column Bento Grid */}
-      <div className="bento-overview-grid">
-        {/* Column 1: Glowing Vermilion/Solar Orange Hero Card */}
-        <div className="vertix-hero-card">
-          <div className="hero-top-row">
+          <div className="stat-card" onClick={() => setActiveTab('loans')} style={{ cursor: 'pointer' }}>
             <div>
-              <span className="hero-badge">
-                <Icon.Book />
-                <span>{t.heroTitle}</span>
-              </span>
-              <div className="hero-big-metric">
-                {(stats?.totalBooks || 0).toLocaleString()}
+              <div className="stat-label">{t.overdueLoans}</div>
+              <div
+                className="stat-value"
+                style={{ color: (stats?.overdueLoans || 0) > 0 ? 'var(--crimson)' : 'var(--emerald)' }}
+              >
+                {fmt(stats?.overdueLoans)}
               </div>
-              <div className="hero-metric-sub">
-                {t.totalCopies}: <strong>{(stats?.totalCopies || 0).toLocaleString()}</strong> ·{' '}
-                {t.catalogueQuality}: <strong>{stats?.completeness || 0}%</strong>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                {(stats?.overdueLoans || 0) > 0
+                  ? lang === 'ar'
+                    ? 'تحتاج متابعة وإرجاع'
+                    : 'Requires follow-up'
+                  : lang === 'ar'
+                  ? 'لا توجد متأخرات حالياً'
+                  : 'All loans on schedule'}
               </div>
             </div>
-            <div
-              style={{
-                background: 'rgba(255,255,255,0.16)',
-                padding: '8px 12px',
-                borderRadius: '14px',
-                textAlign: 'center',
-              }}
+            <span
+              className={`status-badge ${
+                (stats?.overdueLoans || 0) > 0 ? 'status-overdue' : 'status-available'
+              }`}
             >
-              <div style={{ fontSize: '10.5px', opacity: 0.85 }}>محرك القاعدة</div>
-              <div style={{ fontSize: '13px', fontWeight: 800 }}>SQLite WAL</div>
-            </div>
-          </div>
-
-          {/* Signature Diagonal-Hatched Capacity Bar */}
-          <div className="hatched-progress-box">
-            <div className="hatched-progress-labels">
-              <span>
-                {t.availableCopies}: {stats?.availableCopies || 0} ({availPct}%)
-              </span>
-              <span>
-                {t.borrowedCopies}: {stats?.borrowedCopies || 0} ({borrowedPct}%)
-              </span>
-            </div>
-            <div className="hatched-track">
-              <div
-                className="hatched-fill-solid"
-                style={{ width: `${Math.max(8, availPct)}%` }}
-              />
-              <div
-                className="hatched-fill-striped"
-                style={{ width: `${Math.max(6, borrowedPct)}%` }}
-              />
-            </div>
-          </div>
-
-          <div className="hero-bottom-stats">
-            <div>
-              <div className="hero-mini-stat-label">التصنيفات</div>
-              <div className="hero-mini-stat-val">{stats?.totalCategories || 0}</div>
-            </div>
-            <div>
-              <div className="hero-mini-stat-label">المؤلفون</div>
-              <div className="hero-mini-stat-val">{stats?.totalAuthors || 0}</div>
-            </div>
-            <div>
-              <div className="hero-mini-stat-label">دور النشر</div>
-              <div className="hero-mini-stat-val">{stats?.totalPublishers || 0}</div>
-            </div>
+              {(stats?.overdueLoans || 0) > 0
+                ? lang === 'ar'
+                  ? 'تنبيه'
+                  : 'Alert'
+                : lang === 'ar'
+                ? 'منتظم'
+                : 'Clear'}
+            </span>
           </div>
         </div>
 
-        {/* Column 2: 2x2 KPI Bento Cluster */}
-        <div className="kpi-quad-grid">
-          <div
-            className="vertix-card"
-            style={{ cursor: 'pointer' }}
-            onClick={() => {
-              setSearchStatus('available');
-              setActiveTab('discover');
-            }}
-          >
-            <div className="kpi-card-top">
-              <div className="kpi-icon-badge">
-                <Icon.Check />
-              </div>
-              <span className="kpi-trend-pill">{availPct}%</span>
-            </div>
-            <div>
-              <div className="kpi-number">{stats?.availableCopies || 0}</div>
-              <div className="kpi-label">{t.availableCopies}</div>
-            </div>
-          </div>
-
-          <div
-            className="vertix-card"
-            style={{ cursor: 'pointer' }}
-            onClick={() => {
-              loadLoansCenter('open');
-              setActiveTab('loans');
-            }}
-          >
-            <div className="kpi-card-top">
-              <div className="kpi-icon-badge">
-                <Icon.Users />
-              </div>
-              <span className="kpi-trend-pill">نشط: {stats?.activeBorrowers || 0}</span>
-            </div>
-            <div>
-              <div className="kpi-number">{stats?.borrowedCopies || 0}</div>
-              <div className="kpi-label">{t.borrowedCopies}</div>
-            </div>
-          </div>
-
-          <div
-            className="vertix-card"
-            style={{ cursor: 'pointer' }}
-            onClick={() => {
-              loadLoansCenter('overdue');
-              setActiveTab('loans');
-            }}
-          >
-            <div className="kpi-card-top">
-              <div className="kpi-icon-badge" style={{ color: 'var(--status-borrowed)' }}>
-                <Icon.Chart />
-              </div>
-              <span
-                className="status-badge"
-                style={{
-                  background:
-                    (stats?.overdueLoans || 0) > 0
-                      ? 'var(--status-borrowed-soft)'
-                      : 'var(--status-available-soft)',
-                  color:
-                    (stats?.overdueLoans || 0) > 0
-                      ? 'var(--status-borrowed)'
-                      : 'var(--status-available)',
-                }}
-              >
-                قريباً: {stats?.dueSoonLoans || 0}
-              </span>
-            </div>
-            <div>
-              <div className="kpi-number">{stats?.overdueLoans || 0}</div>
-              <div className="kpi-label">{t.overdueLoans}</div>
-            </div>
-          </div>
-
-          <div
-            className="vertix-card"
-            style={{ cursor: 'pointer' }}
-            onClick={() => setActiveTab('analytics')}
-          >
-            <div className="kpi-card-top">
-              <div className="kpi-icon-badge">
-                <Icon.Book />
-              </div>
-              <span className="kpi-trend-pill">{stats?.multiVolumeTitles || 0} موسوعة</span>
-            </div>
-            <div>
-              <div className="kpi-number">
-                {(stats?.totalValue || 0).toLocaleString()}{' '}
-                <span style={{ fontSize: '13px', fontWeight: 600 }}>{t.currency}</span>
-              </div>
-              <div className="kpi-label">{t.collectionValue}</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Column 3: Interactive Hatched Bar Chart Card */}
-        <div className="vertix-card">
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '10px',
-            }}
-          >
-            <div>
-              <div style={{ fontWeight: 800, fontSize: '16px' }}>توزيع مقتنيات المكتبة</div>
-              <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                أعلى التصنيفات ودور النشر في الفهرس
-              </div>
-            </div>
-            <div
-              style={{
-                display: 'flex',
-                gap: '4px',
-                background: 'var(--bg-surface-muted)',
-                padding: '4px',
-                borderRadius: '999px',
-              }}
-            >
-              <button
-                className={`nav-pill-btn ${chartMode === 'category' ? 'active' : ''}`}
-                style={{ padding: '5px 12px', fontSize: '11.5px' }}
-                onClick={() => setChartMode('category')}
-              >
-                التصنيفات
-              </button>
-              <button
-                className={`nav-pill-btn ${chartMode === 'publisher' ? 'active' : ''}`}
-                style={{ padding: '5px 12px', fontSize: '11.5px' }}
-                onClick={() => setChartMode('publisher')}
-              >
-                الناشرون
-              </button>
-            </div>
-          </div>
-
-          <div className="vertix-chart-bars">
-            {chartData.map((col) => (
-              <div
-                key={col.label}
-                className={`chart-col ${col.highlight ? 'highlight' : ''}`}
-                onClick={() => setActiveTab('analytics')}
-              >
-                <span className="chart-col-val">{col.count}</span>
-                <div
-                  className="chart-bar-wrap"
-                  style={{ height: `${col.heightPct}%` }}
-                >
-                  <div className="chart-bar-hatched-cap" />
+        {/* Row 3: 3 Viewport-Locked Columns (Categories, Recent Books, Live Activity) */}
+        <div className="overview-bottom-row">
+          {/* Column 1: Category Distribution & Availability Meter */}
+          <div className="glass-panel panel-flex-col">
+            <div className="section-header">
+              <div>
+                <div className="section-title">
+                  <Icon.Chart style={{ width: 15, height: 15, color: 'var(--brand-accent)' }} />
+                  <span>{lang === 'ar' ? 'توزيع التصنيفات الموضوعية' : 'Top Subject Categories'}</span>
                 </div>
-                <span className="chart-col-label" title={col.label}>
-                  {col.label}
-                </span>
+                <div className="section-subtitle">
+                  {lang === 'ar'
+                    ? `متاح: ${fmt(availableCopies)} (${availPct}%) · مستعار: ${fmt(borrowedCopies)} (${borrowedPct}%)`
+                    : `Available: ${fmt(availableCopies)} (${availPct}%) · Borrowed: ${fmt(borrowedCopies)} (${borrowedPct}%)`}
+                </div>
               </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Bottom Row: Recent Additions + Live Activity Feed */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1.65fr 1fr',
-          gap: '18px',
-        }}
-      >
-        {/* Recent Catalogue Additions */}
-        <div className="vertix-card" style={{ gap: '16px' }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <div>
-              <h2 style={{ fontSize: '17px', fontWeight: 800 }}>أحدث الكتب المضافة</h2>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                انقر على أي كتاب لعرض الأجزاء المتاحة أو تسجيل إعارة فورية
-              </p>
+              <button className="btn btn-ghost" style={{ height: 26, fontSize: 11 }} onClick={() => setActiveTab('analytics')}>
+                {lang === 'ar' ? 'التحليلات' : 'Analytics'}
+              </button>
             </div>
-            <button
-              className="btn-soft"
-              onClick={() => setActiveTab('catalogue')}
-            >
-              عرض الفهرس الكامل ({books.length})
-            </button>
-          </div>
 
-          <div className="books-grid">
-            {recentBooks.map((book) => {
-              const avail = computeBookAvailability(book);
-              const badgeLabel =
-                avail.state === 'available'
-                  ? t.statusAvailable
-                  : avail.state === 'partial'
-                  ? t.statusPartial
-                  : t.statusBorrowed;
-              return (
-                <div
-                  key={book.id}
-                  className="book-vertix-card"
-                  onClick={() => setSelectedBookId(book.id)}
-                >
-                  <div>
+            {/* Proportion Bar */}
+            <div
+              style={{
+                height: 8,
+                borderRadius: 999,
+                background: 'var(--bg-muted)',
+                overflow: 'hidden',
+                display: 'flex',
+                marginBottom: 10,
+                flexShrink: 0,
+              }}
+            >
+              <div
+                style={{
+                  width: `${availPct}%`,
+                  background: 'var(--emerald)',
+                  transition: 'width 0.5s var(--ease-spring)',
+                }}
+              />
+              <div
+                style={{
+                  width: `${borrowedPct}%`,
+                  background: 'var(--amber)',
+                  transition: 'width 0.5s var(--ease-spring)',
+                }}
+              />
+            </div>
+
+            <div className="scroll-region" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {categories.length === 0 ? (
+                <div className="empty-state-card" style={{ minHeight: 120, padding: 14 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-secondary)' }}>
+                    {lang === 'ar' ? 'لا توجد تصنيفات مسجلة بعد' : 'No categories recorded yet'}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
+                    {lang === 'ar'
+                      ? 'تظهر إحصائيات التصنيفات تلقائياً فور إضافة الكتب.'
+                      : 'Category distribution will appear once books are added.'}
+                  </div>
+                </div>
+              ) : (
+                categories.map(([cat, count]) => {
+                  const pct = Math.round((count / maxCatCount) * 100);
+                  return (
                     <div
+                      key={cat}
+                      onClick={() => {
+                        setCategoryFilter(cat);
+                        setActiveTab('discover');
+                      }}
                       style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginBottom: '10px',
+                        cursor: 'pointer',
+                        padding: '6px 8px',
+                        borderRadius: 8,
+                        background: 'var(--bg-muted)',
+                        border: '1px solid var(--border-subtle)',
                       }}
                     >
-                      <span className="ref-mono-pill">{book.referenceNumber}</span>
-                      <span className={`status-badge ${avail.state}`}>{badgeLabel}</span>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          fontSize: 12,
+                          marginBottom: 4,
+                        }}
+                      >
+                        <span style={{ fontWeight: 600 }}>{cat}</span>
+                        <span style={{ fontFamily: 'var(--font-numeric)', fontWeight: 700, color: 'var(--brand-accent)' }}>
+                          {fmt(count)} {lang === 'ar' ? 'عنوان' : 'titles'}
+                        </span>
+                      </div>
+                      <div style={{ height: 5, borderRadius: 999, background: 'var(--bg-subtle)', overflow: 'hidden' }}>
+                        <div
+                          style={{
+                            width: `${pct}%`,
+                            height: '100%',
+                            borderRadius: 999,
+                            background: 'var(--brand-button)',
+                          }}
+                        />
+                      </div>
                     </div>
-                    <div className="book-card-title">{book.title}</div>
-                    <div className="book-card-author">
-                      {book.author || '—'} · {book.publisher || '—'}
-                    </div>
-                  </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
 
-                  <div className="book-card-meta-strip">
-                    {book.category && <span className="meta-chip">{book.category}</span>}
-                    <span className="meta-chip">
-                      {t.copiesLabel}: {avail.availableCopies}/{avail.copiesTotal}
-                    </span>
-                    {book.volumes > 1 && (
-                      <span className="meta-chip">
-                        {t.volumesLabel}: {book.volumes}
-                      </span>
-                    )}
-                    {book.shelf && (
-                      <span className="meta-chip">
-                        {t.shelfLabel}: {book.shelf}
-                      </span>
-                    )}
+          {/* Column 2: Recently Added Books */}
+          <div className="glass-panel panel-flex-col">
+            <div className="section-header">
+              <div>
+                <div className="section-title">
+                  <Icon.Book style={{ width: 15, height: 15, color: 'var(--brand-accent)' }} />
+                  <span>{lang === 'ar' ? 'أحدث الإضافات للفهرس' : 'Recently Added Titles'}</span>
+                </div>
+                <div className="section-subtitle">
+                  {lang === 'ar' ? 'انقر لعرض البطاقة الكاملة أو الإعارة' : 'Click any title to inspect or circulate'}
+                </div>
+              </div>
+              <button className="btn btn-ghost" style={{ height: 26, fontSize: 11 }} onClick={() => setActiveTab('catalogue')}>
+                {lang === 'ar' ? 'الفهرس' : 'Catalogue'}
+              </button>
+            </div>
+
+            <div className="scroll-region" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {recentBooks.length === 0 ? (
+                <div className="empty-state-card" style={{ minHeight: 120, padding: 14 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-secondary)' }}>
+                    {t.emptyLibraryTitle}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
+                    {t.emptyLibraryDesc}
+                  </div>
+                  <button className="btn btn-primary" style={{ marginTop: 6 }} onClick={() => setActiveTab('add')}>
+                    <Icon.Plus />
+                    <span>{t.quickAddBook}</span>
+                  </button>
+                </div>
+              ) : (
+                recentBooks.map((b) => {
+                  const avail = computeBookAvailability(b);
+                  return (
+                    <div
+                      key={b.id}
+                      onClick={() => setInspectedBook(b)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 8,
+                        padding: '7px 10px',
+                        borderRadius: 9,
+                        background: 'var(--bg-muted)',
+                        border: '1px solid var(--border-subtle)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <div style={{ minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontWeight: 700,
+                            fontSize: 12.5,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {b.title}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                          {b.author || (lang === 'ar' ? 'بدون مؤلف' : 'No author')} · {b.category || (lang === 'ar' ? 'عام' : 'General')}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                        <span className="ref-chip">{b.referenceNumber}</span>
+                        <span
+                          className={`status-badge ${
+                            avail.state === 'available'
+                              ? 'status-available'
+                              : avail.state === 'partial'
+                              ? 'status-partial'
+                              : 'status-borrowed'
+                          }`}
+                        >
+                          {avail.state === 'available'
+                            ? t.statusAvailable
+                            : avail.state === 'partial'
+                            ? t.statusPartial
+                            : t.statusBorrowed}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Column 3: Live Activity Stream */}
+          <div className="glass-panel panel-flex-col">
+            <div className="section-header">
+              <div>
+                <div className="section-title">
+                  <Icon.Shield style={{ width: 15, height: 15, color: 'var(--brand-accent)' }} />
+                  <span>{lang === 'ar' ? 'السجل اللحظي للعمليات' : 'Live Activity Stream'}</span>
+                </div>
+                <div className="section-subtitle">
+                  {lang === 'ar' ? 'توثيق تلقائي للإضافات والإعارات' : 'Real-time audit trail'}
+                </div>
+              </div>
+            </div>
+
+            <div className="scroll-region" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {activity.length === 0 ? (
+                <div className="empty-state-card" style={{ minHeight: 120, padding: 14 }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                    {lang === 'ar' ? 'لا توجد عمليات مسجلة بعد' : 'No recent operations logged'}
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Live Activity Stream */}
-        <div className="vertix-card" style={{ justifyContent: 'flex-start', gap: '14px' }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <div>
-              <h2 style={{ fontSize: '17px', fontWeight: 800 }}>السجل الزمني للعمليات</h2>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                آخر الحركات المسجلة في محرك SQLite
-              </p>
+              ) : (
+                activity.slice(0, 12).map((act) => (
+                  <div
+                    key={act.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 8,
+                      padding: '7px 10px',
+                      borderRadius: 8,
+                      background: 'var(--bg-muted)',
+                      border: '1px solid var(--border-subtle)',
+                      fontSize: 11.5,
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontWeight: 600,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {act.message}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 10.5,
+                        color: 'var(--text-muted)',
+                        fontFamily: 'var(--font-numeric)',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {new Date(act.createdAt).toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-US')}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
-            <span className="kpi-trend-pill">{activity.length} حركة</span>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {activity.slice(0, 7).map((item) => (
-              <div
-                key={item.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '10px',
-                  padding: '11px 14px',
-                  borderRadius: '16px',
-                  background: 'var(--bg-surface-muted)',
-                  fontSize: '12.5px',
-                }}
-              >
-                <span style={{ fontWeight: 600 }}>{item.message}</span>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                  {item.createdAt?.slice(0, 10)}
-                </span>
-              </div>
-            ))}
           </div>
         </div>
       </div>
     </div>
   );
-};
+}

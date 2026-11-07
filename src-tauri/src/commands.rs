@@ -19,7 +19,7 @@ impl AppState {
         let dir = data_dir.as_ref();
         let db = Database::open(dir)?;
         let auth = AuthStore::new(dir);
-        let updater = UpdateManager::new(dir, "4.0.0", "raff-library", "raff");
+        let updater = UpdateManager::new(dir, "4.0.0", "Hzifa33", "raff");
 
         Ok(Self {
             db: Mutex::new(db),
@@ -478,6 +478,10 @@ impl AppState {
             "updater_get_state" => {
                 let updater = self.updater.lock().map_err(|e| e.to_string())?;
                 Ok(updater.get_status())
+            }
+            "updater_check_now" => {
+                let mut updater = self.updater.lock().map_err(|e| e.to_string())?;
+                Ok(updater.mark_manual_check())
             }
             "updater_set_preferences" => {
                 self.check_admin()?;

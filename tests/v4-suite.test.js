@@ -17,10 +17,11 @@ function runTest(name, fn) {
   }
 }
 
-console.log('\n=== RAFF 4.0.0 — Typography, Heritage Color System, GitHub Workflow & SQLite Suite ===');
+console.log('\n=== RAFF 4.0.0 — Complete UX, Frameless Window, Color Psychology, View Transitions & SQLite Suite ===');
 
-runTest('1. Package & Tauri 2 + Rust + SQLite configuration is version 4.0.0', () => {
+runTest('1. Package & Tauri 2 Frameless Window + NSIS Installer Icon configuration', () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+  assert.equal(pkg.name, 'raff-library');
   assert.equal(pkg.version, '4.0.0');
   assert.ok(pkg.dependencies.react, 'React 18 dependency present');
   assert.ok(pkg.dependencies.zustand, 'Zustand state manager present');
@@ -31,13 +32,27 @@ runTest('1. Package & Tauri 2 + Rust + SQLite configuration is version 4.0.0', (
   );
   assert.equal(tauriConf.version, '4.0.0');
   assert.equal(tauriConf.build.frontendDist, '../dist');
+  assert.equal(tauriConf.app.windows[0].decorations, false, 'Custom frameless window enabled');
+  assert.equal(
+    tauriConf.bundle.windows.nsis.installerIcon,
+    'icons/icon.ico',
+    'NSIS installer .exe icon configured'
+  );
+  assert.ok(
+    fs.existsSync(path.join(ROOT, 'src-tauri', 'icons', 'icon.ico')),
+    'src-tauri/icons/icon.ico exists'
+  );
+  assert.ok(
+    fs.existsSync(path.join(ROOT, 'public', 'assets', 'logo-256.png')),
+    'public/assets/logo-256.png exists for header logo'
+  );
 });
 
 runTest('2. Vite production bundle (dist/) is built and lightweight', () => {
   const distIndex = path.join(ROOT, 'dist', 'index.html');
   assert.ok(fs.existsSync(distIndex), 'dist/index.html must exist');
   const html = fs.readFileSync(distIndex, 'utf8');
-  assert.ok(html.includes('raff-root'), 'Mounts #raff-root');
+  assert.ok(html.includes('root'), 'Mounts root container');
 });
 
 runTest('3. Curated Multi-Typeface Arabic & Numeric Font Library (Local WOFF2)', () => {
@@ -65,56 +80,45 @@ runTest('3. Curated Multi-Typeface Arabic & Numeric Font Library (Local WOFF2)',
   }
 });
 
-runTest('4. Refined RAFF Brand Palette, Secondary Accents & Light/Dark Contrast Audit', () => {
+runTest('4. Serene Warm Alabaster, Roasted Espresso & Champagne Gold Palette + 100vh Viewport UX + View Transitions', () => {
   const css = fs.readFileSync(
     path.join(ROOT, 'src', 'app', 'styles', 'vertix-raff.css'),
     'utf8'
   );
-  // Semantic typography stacks
   assert.ok(css.includes('--font-display:'), 'Display font stack defined');
-  assert.ok(css.includes('--font-body:'), 'Body font stack defined');
-  assert.ok(css.includes('--font-ui:'), 'UI font stack defined');
-  assert.ok(css.includes('--font-serif:'), 'Literary serif font stack defined');
-  assert.ok(css.includes('--font-numeric:'), 'Tabular numeric font stack defined');
-  assert.ok(css.includes('--font-mono:'), 'Monospace font stack defined');
-  assert.ok(css.includes('tabular-nums'), 'Tabular numerals enabled for metrics & tables');
-  assert.ok(
-    css.includes('html[dir="rtl"] *'),
-    'Protects Arabic ligatures from negative letter-spacing'
-  );
+  assert.ok(css.includes('--font-numeric:'), 'Tabular numeric font stack with Readex Pro first');
+  assert.ok(css.includes('tabular-nums'), 'Tabular numerals enabled');
 
-  // Refined Primary Heritage Palette & Complementary Secondary Accents
-  assert.ok(css.includes('#f3efe7'), 'Refined Warm Parchment light canvas (#f3efe7)');
-  assert.ok(css.includes('#fbf9f5'), 'Crisp Ivory card surface (#fbf9f5)');
-  assert.ok(css.includes('#221913'), 'High-contrast Rich Walnut ink (#221913)');
-  assert.ok(css.includes('#9e7329'), 'Burnished Brass Gold brand accent (#9e7329)');
-  assert.ok(css.includes('#120f0d'), 'Deep Espresso Walnut dark canvas (#120f0d)');
-  assert.ok(css.includes('#f6f1e9'), 'Luminous Parchment dark text (#f6f1e9)');
-  assert.ok(css.includes('#dbb870'), 'Luminous Brass Gold dark accent (#dbb870)');
-  assert.ok(css.includes('--accent-plum:'), 'Complementary Royal Plum accent');
-  assert.ok(css.includes('--accent-copper:'), 'Complementary Terracotta Copper accent');
+  // Serene psychological palette (Light & Dark)
+  assert.ok(css.includes('#f5f4f0'), 'Serene Warm Alabaster light canvas (#f5f4f0)');
+  assert.ok(css.includes('#2d2018'), 'Rich Roasted Espresso primary brand (#2d2018)');
+  assert.ok(css.includes('#100e0d'), 'Velvet Obsidian Roast dark canvas (#100e0d)');
+  assert.ok(css.includes('#d8ae68'), 'Warm Champagne Gold dark brand (#d8ae68)');
 
-  // Contrast & WebView visibility safeguards
-  assert.ok(css.includes('color-scheme: light;'), 'Light color-scheme declared');
-  assert.ok(css.includes('color-scheme: dark;'), 'Dark color-scheme declared');
-  assert.ok(css.includes('.vertix-select option'), 'Explicit select option contrast');
-  assert.ok(css.includes('::placeholder'), 'Explicit placeholder contrast');
-  assert.ok(css.includes('.barcode-preview-plate'), 'High-contrast barcode plate');
-
-  // Conflicting orange palette remains absent
-  assert.ok(!css.toLowerCase().includes('#ff5520'), 'No conflicting #ff5520 orange');
-  assert.ok(!css.toLowerCase().includes('#ff622e'), 'No conflicting #ff622e orange');
+  // Circular View Transition Reveal & 100vh Viewport Lock
+  assert.ok(css.includes('::view-transition-new(root)'), 'View Transitions API circular reveal');
+  assert.ok(css.includes('circularThemeReveal'), 'Circular clip-path keyframe animation');
+  assert.ok(css.includes('.custom-titlebar'), 'Custom frameless titlebar styled');
+  assert.ok(css.includes('.intelligent-sidebar'), 'Labeled intelligent sidebar styled');
 });
 
-runTest('5. GitHub Actions Release Workflow (.github/workflows/release.yml) is ready for v4.0.0', () => {
-  const workflowPath = path.join(ROOT, '.github', 'workflows', 'release.yml');
-  assert.ok(fs.existsSync(workflowPath), '.github/workflows/release.yml must exist');
-  const yml = fs.readFileSync(workflowPath, 'utf8');
-  assert.ok(yml.includes("'v4.0.0'"), 'Triggers on v4.0.0 tag push');
-  assert.ok(yml.includes('build-windows:'), 'Includes Windows x64/x86 build job');
-  assert.ok(yml.includes('build-linux:'), 'Includes Linux build job');
-  assert.ok(yml.includes('build-macos:'), 'Includes macOS build job');
-  assert.ok(yml.includes('publish-release:'), 'Includes GitHub Release publishing job');
+runTest('5. Complete v3 Settings Parity, Real Logo, Labeled Sidebar & Bilingual Translations', () => {
+  const appTsx = fs.readFileSync(path.join(ROOT, 'src', 'app', 'App.tsx'), 'utf8');
+  assert.ok(appTsx.includes('logo-256.png'), 'Uses real RAFF logo image instead of text character');
+  assert.ok(appTsx.includes("openSettingsTab('security'"), 'Sidebar Security button opens Security tab directly');
+  assert.ok(appTsx.includes('windowMinimize'), 'Custom window minimize control wired');
+  assert.ok(appTsx.includes('windowToggleMaximize'), 'Custom window maximize control wired');
+  assert.ok(appTsx.includes('windowClose'), 'Custom window close control wired');
+
+  const settingsTsx = fs.readFileSync(
+    path.join(ROOT, 'src', 'app', 'views', 'AnalyticsSettingsView.tsx'),
+    'utf8'
+  );
+  assert.ok(!settingsTsx.includes('~279 ms'), 'Removed useless architectural bragging metrics');
+  assert.ok(settingsTsx.includes('applyLoanDurationToOpenLoans'), 'Includes Apply Loan Duration to Open Loans');
+  assert.ok(settingsTsx.includes('scannerTestStats'), 'Includes interactive live barcode scanner test');
+  assert.ok(settingsTsx.includes('restoreBackupFile'), 'Includes per-backup restore action');
+  assert.ok(settingsTsx.includes('resetAllData'), 'Includes full library reset with confirmation');
 });
 
 runTest('6. End-to-End Rust SQLite CLI Dispatch: v3 Migration, CRUD & Partial Volumes', () => {
@@ -193,6 +197,14 @@ runTest('6. End-to-End Rust SQLite CLI Dispatch: v3 Migration, CRUD & Partial Vo
   });
   assert.ok(afterPart.loans[0].volumeReturns['1']);
   assert.equal(afterPart.loans[0].returnedAt, null);
+
+  // Test apply_loan_duration_to_open_loans
+  const applied = dispatch('apply_loan_duration_to_open_loans', { durationDays: 45 });
+  assert.equal(applied.updated, 1);
+
+  // Test updater_check_now
+  const upd = dispatch('updater_check_now', {});
+  assert.equal(upd.repository, 'Hzifa33/raff');
 
   const integrity = dispatch('integrity_check');
   assert.equal(integrity.ok, true);

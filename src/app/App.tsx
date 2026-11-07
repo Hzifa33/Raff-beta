@@ -19,6 +19,7 @@ import {
   ReturnLoanModal,
 } from './components/Modals';
 import { cleanReferenceText } from './lib/domain';
+import { isAdminState } from './store/useRaffStore';
 import {
   windowClose,
   windowMinimize,
@@ -59,7 +60,7 @@ export function App() {
   } = useRaffStore();
 
   const t = translations[lang];
-  const isAdmin = !auth?.enabled || (auth?.unlocked && auth?.mode === 'admin');
+  const isAdmin = isAdminState(auth);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -240,8 +241,8 @@ export function App() {
               className="brand-logo-img"
               onError={(e) => {
                 const img = e.currentTarget;
-                if (!img.src.includes('icon-256.png')) {
-                  img.src = './assets/icon-256.png';
+                if (!img.src.includes('logo-256.png')) {
+                  img.src = './assets/logo-256.png';
                 }
               }}
             />
@@ -252,42 +253,62 @@ export function App() {
           </div>
         </div>
 
-        {/* Center: Instant Global Search Bar */}
-        <div className="titlebar-center">
-          <div className="global-search-bar">
-            <Icon.Search style={{ color: 'var(--text-muted)', flexShrink: 0, width: 15, height: 15 }} />
-            <input
-              id="global-quick-search"
-              type="text"
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                if (effectiveTab !== 'discover' && effectiveTab !== 'catalogue') {
-                  setActiveTab('discover');
-                }
-              }}
-              placeholder={t.searchPlaceholder}
-            />
-            {searchQuery ? (
-              <button
-                onClick={() => setSearchQuery('')}
-                style={{
-                  border: 'none',
-                  background: 'transparent',
-                  color: 'var(--text-muted)',
-                  cursor: 'pointer',
-                  fontSize: 12,
-                  fontWeight: 700,
+        {/* Center: Instant Global Search Bar (Admin) or Public Kiosk Badge (Public) */}
+        {isAdmin ? (
+          <div className="titlebar-center">
+            <div className="global-search-bar">
+              <Icon.Search style={{ color: 'var(--text-muted)', flexShrink: 0, width: 15, height: 15 }} />
+              <input
+                id="global-quick-search"
+                type="text"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  if (effectiveTab !== 'discover' && effectiveTab !== 'catalogue') {
+                    setActiveTab('discover');
+                  }
                 }}
-                title={lang === 'ar' ? 'مسح البحث' : 'Clear search'}
-              >
-                ✕
-              </button>
-            ) : (
-              <span className="search-kbd">Ctrl+K</span>
-            )}
+                placeholder={t.searchPlaceholder}
+              />
+              {searchQuery ? (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  style={{
+                    border: 'none',
+                    background: 'transparent',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    fontSize: 12,
+                    fontWeight: 700,
+                  }}
+                  title={lang === 'ar' ? 'مسح البحث' : 'Clear search'}
+                >
+                  ✕
+                </button>
+              ) : (
+                <span className="search-kbd">Ctrl+K</span>
+              )}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="titlebar-center" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span
+              style={{
+                fontSize: 12.5,
+                fontWeight: 700,
+                color: 'var(--brand-accent)',
+                letterSpacing: '0.02em',
+                padding: '4px 14px',
+                borderRadius: 20,
+                background: 'var(--brand-soft)',
+                border: '1px solid rgba(216, 174, 104, 0.3)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              }}
+            >
+              {lang === 'ar' ? 'فهرس المكتبة العام — وضع القراءة' : 'Public Library Kiosk — Browse Mode'}
+            </span>
+          </div>
+        )}
 
         {/* End: Clear Language Switcher, Theme Reveal Orb, Mode Switch & Custom Window Controls */}
         <div className="titlebar-end">
@@ -301,8 +322,8 @@ export function App() {
                 : 'تبديل لغة الواجهة إلى العربية'
             }
           >
-            <Icon.Globe />
-            <span className="lang-active-tag">{lang === 'ar' ? 'عربي' : 'EN'}</span>
+            <Icon.Translate style={{ color: 'var(--brand-accent)' }} />
+            <span className="lang-active-tag">{lang === 'ar' ? 'العربية' : 'English'}</span>
             <span style={{ color: 'var(--text-secondary)' }}>⇄ {t.langSwitchLabel}</span>
           </button>
 
@@ -456,6 +477,25 @@ export function App() {
                 )}
               </div>
             </button>
+
+            {/* Developer Credit Link (Hzifa33) */}
+            <a
+              href="https://Hzifa33.github.io"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="dev-credit-badge"
+              title={lang === 'ar' ? 'تطوير Hzifa33 — فتح الموقع' : 'Developed by Hzifa33'}
+            >
+              <span className="dev-credit-dot" />
+              {sidebarExpanded ? (
+                <span className="dev-credit-text">
+                  <small>{lang === 'ar' ? 'تطوير' : 'Dev'}</small>
+                  <b>Hzifa33</b>
+                </span>
+              ) : (
+                <b style={{ fontSize: 10 }}>H33</b>
+              )}
+            </a>
           </div>
         </aside>
 

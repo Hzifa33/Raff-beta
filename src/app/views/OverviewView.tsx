@@ -129,6 +129,18 @@ export function OverviewView() {
                   {fmt(stats?.totalValue)} <span style={{ fontSize: 11 }}>{t.currency}</span>
                 </div>
                 <div style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>{t.collectionValue}</div>
+                <div style={{ marginTop: 4 }}>
+                  <a
+                    href="https://Hzifa33.github.io"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="dev-credit-inline"
+                    title={lang === 'ar' ? 'تطوير Hzifa33' : 'Developed by Hzifa33'}
+                  >
+                    <span className="dev-credit-dot" />
+                    <span>{lang === 'ar' ? 'تطوير' : 'Dev'}: <b>Hzifa33</b></span>
+                  </a>
+                </div>
               </div>
             </div>
 

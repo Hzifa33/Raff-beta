@@ -9,7 +9,7 @@ use subtle::ConstantTimeEq;
 
 pub const SECURITY_FILE: &str = "raff-security.json";
 pub const SECURITY_VERSION: u32 = 1;
-pub const MIN_PASSWORD_LENGTH: usize = 6;
+pub const MIN_PASSWORD_LENGTH: usize = 4;
 pub const MAX_ATTEMPTS: u32 = 5;
 pub const LOCK_MS: i64 = 30_000;
 
@@ -71,14 +71,23 @@ impl Default for SecurityData {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthState {
+    pub enabled: bool,
     pub configured: bool,
+    pub username: String,
     pub mode: String,
-    pub recovery_question: String,
+    pub unlocked: bool,
+    pub public_mode_enabled: bool,
     pub start_in_public_mode: bool,
+    pub recovery_configured: bool,
+    pub recovery_question: String,
+    pub locked_out: bool,
     pub locked_for_ms: i64,
+    pub lockout_remaining_ms: i64,
     pub max_attempts: u32,
+    pub max_failed_attempts: u32,
     pub failed_attempts: u32,
     pub attempts_remaining: u32,
+    pub remaining_attempts: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -218,19 +227,32 @@ impl AuthStore {
         } else {
             self.failed_attempts
         };
+        let attempts_rem = if locked {
+            0
+        } else {
+            MAX_ATTEMPTS.saturating_sub(self.failed_attempts)
+        };
+        let rec_configured =
+            !self.data.recovery.question.trim().is_empty() && self.data.recovery.answer.is_some();
+
         AuthState {
+            enabled: self.data.configured,
             configured: self.data.configured,
+            username: "admin".to_string(),
             mode: self.mode.clone(),
-            recovery_question: self.data.recovery.question.clone(),
+            unlocked: !self.data.configured || self.mode == "admin",
+            public_mode_enabled: self.data.start_in_public_mode,
             start_in_public_mode: self.data.start_in_public_mode,
+            recovery_configured: rec_configured,
+            recovery_question: self.data.recovery.question.clone(),
+            locked_out: locked,
             locked_for_ms: remaining,
+            lockout_remaining_ms: remaining,
             max_attempts: MAX_ATTEMPTS,
+            max_failed_attempts: MAX_ATTEMPTS,
             failed_attempts: failed,
-            attempts_remaining: if locked {
-                0
-            } else {
-                MAX_ATTEMPTS.saturating_sub(self.failed_attempts)
-            },
+            attempts_remaining: attempts_rem,
+            remaining_attempts: attempts_rem,
         }
     }
 
@@ -244,20 +266,19 @@ impl AuthStore {
         let safe_pw = Self::assert_password(password)?;
         let safe_q: String = question.trim().chars().take(180).collect();
         let safe_a = normalize_security_answer(answer);
-        if safe_q.is_empty() {
-            return Err("اكتب سؤال الاسترداد".to_string());
-        }
-        if safe_a.chars().count() < 2 {
-            return Err("اكتب إجابة الاسترداد".to_string());
-        }
+        let recovery = if !safe_q.is_empty() && safe_a.chars().count() >= 2 {
+            RecoveryRecord {
+                question: safe_q,
+                answer: Some(make_hash(&safe_a)),
+            }
+        } else {
+            RecoveryRecord::default()
+        };
         self.data = SecurityData {
             version: SECURITY_VERSION,
             configured: true,
             password: Some(make_hash(&safe_pw)),
-            recovery: RecoveryRecord {
-                question: safe_q,
-                answer: Some(make_hash(&safe_a)),
-            },
+            recovery,
             start_in_public_mode,
             updated_at: now_iso(),
         };
@@ -372,17 +393,15 @@ impl AuthStore {
         }
         if let Some(q) = question {
             let safe_q: String = q.trim().chars().take(180).collect();
-            if safe_q.is_empty() {
-                return Err("اكتب سؤال الاسترداد".to_string());
+            if !safe_q.is_empty() {
+                self.data.recovery.question = safe_q;
             }
-            self.data.recovery.question = safe_q;
         }
         if let Some(a) = answer {
             let safe_a = normalize_security_answer(a);
-            if safe_a.chars().count() < 2 {
-                return Err("اكتب إجابة الاسترداد".to_string());
+            if safe_a.chars().count() >= 2 {
+                self.data.recovery.answer = Some(make_hash(&safe_a));
             }
-            self.data.recovery.answer = Some(make_hash(&safe_a));
         }
         self.data.configured = self.data.password.is_some();
         self.data.updated_at = now_iso();

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useRaffStore } from '../store/useRaffStore';
+import { useRaffStore, isAdminState } from '../store/useRaffStore';
 import {
   computeBookAvailability,
   getLoanOutstandingVolumes,
@@ -22,7 +22,7 @@ export function BookInspectorModal() {
     removeBook,
   } = useRaffStore();
   const isAr = lang === 'ar';
-  const isAdmin = !auth?.enabled || (auth?.unlocked && auth?.mode === 'admin');
+  const isAdmin = isAdminState(auth);
 
   if (!inspectedBook) return null;
   const b = inspectedBook;

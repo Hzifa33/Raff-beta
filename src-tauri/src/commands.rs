@@ -384,22 +384,7 @@ impl AppState {
             }
             "auth_get_state" => {
                 let mut auth = self.auth.lock().map_err(|e| e.to_string())?;
-                let s = auth.get_state();
-                Ok(json!({
-                    "enabled": s.configured,
-                    "configured": s.configured,
-                    "username": "admin",
-                    "publicModeEnabled": s.start_in_public_mode,
-                    "recoveryConfigured": !s.recovery_question.is_empty(),
-                    "recoveryQuestion": s.recovery_question,
-                    "failedAttempts": s.failed_attempts,
-                    "remainingAttempts": s.attempts_remaining,
-                    "maxFailedAttempts": s.max_attempts,
-                    "lockedOut": s.locked_for_ms > 0,
-                    "lockoutRemainingMs": s.locked_for_ms,
-                    "unlocked": s.mode == "admin",
-                    "mode": s.mode
-                }))
+                serde_json::to_value(auth.get_state()).map_err(|e| e.to_string())
             }
             "auth_login" => {
                 let password = args.get("password").and_then(|v| v.as_str()).unwrap_or("");

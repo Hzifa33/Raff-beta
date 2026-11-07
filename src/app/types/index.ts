@@ -207,15 +207,20 @@ export interface RepairReport {
 
 export interface AuthState {
   enabled: boolean;
+  configured?: boolean;
   username: string;
   publicModeEnabled: boolean;
+  startInPublicMode?: boolean;
   recoveryConfigured: boolean;
   recoveryQuestion: string;
   failedAttempts: number;
   remainingAttempts: number;
+  attemptsRemaining?: number;
   maxFailedAttempts: number;
+  maxAttempts?: number;
   lockedOut: boolean;
   lockoutRemainingMs: number;
+  lockedForMs?: number;
   unlocked: boolean;
   mode: 'admin' | 'public';
 }

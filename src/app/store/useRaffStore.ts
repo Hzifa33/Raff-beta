@@ -186,6 +186,13 @@ const DEFAULT_AUTH: AuthState = {
 
 const PUBLIC_ALLOWED_TABS: NavTab[] = ['discover', 'catalogue'];
 
+export function isAdminState(auth?: AuthState | null): boolean {
+  if (!auth) return true;
+  const isProtected = Boolean(auth.enabled || auth.configured);
+  if (!isProtected) return true;
+  return auth.mode === 'admin' && auth.unlocked !== false;
+}
+
 export const useRaffStore = create<RaffStore>((set, get) => ({
   theme: (localStorage.getItem('raff_v4_theme') as ThemeMode) || 'light',
   lang: (localStorage.getItem('raff_v4_lang') as LanguageDir) || 'ar',
@@ -232,8 +239,20 @@ export const useRaffStore = create<RaffStore>((set, get) => ({
   hydrateAll: async () => {
     set({ loading: true });
     try {
-      const auth = await invokeRaff<AuthState>('auth_get_state');
-      const isPublicMode = Boolean(auth?.enabled && (!auth?.unlocked || auth?.mode === 'public'));
+      const rawAuth = await invokeRaff<AuthState>('auth_get_state');
+      const auth: AuthState = rawAuth
+        ? {
+            ...DEFAULT_AUTH,
+            ...rawAuth,
+            enabled: Boolean(rawAuth.enabled ?? rawAuth.configured),
+            configured: Boolean(rawAuth.configured ?? rawAuth.enabled),
+            unlocked:
+              !Boolean(rawAuth.enabled ?? rawAuth.configured) ||
+              (rawAuth.mode === 'admin' && rawAuth.unlocked !== false),
+          }
+        : DEFAULT_AUTH;
+
+      const isPublicMode = !isAdminState(auth);
 
       if (isPublicMode) {
         const [books, meta, settings] = await Promise.all([
@@ -247,7 +266,7 @@ export const useRaffStore = create<RaffStore>((set, get) => ({
           books: books || [],
           meta: meta || null,
           settings: settings || DEFAULT_SETTINGS,
-          auth: auth || DEFAULT_AUTH,
+          auth,
           activeTab: nextTab,
           loading: false,
         });
@@ -360,8 +379,7 @@ export const useRaffStore = create<RaffStore>((set, get) => ({
 
   setActiveTab: (activeTab) => {
     const { auth } = get();
-    const isPublicMode = Boolean(auth?.enabled && (!auth?.unlocked || auth?.mode === 'public'));
-    if (isPublicMode && !PUBLIC_ALLOWED_TABS.includes(activeTab)) {
+    if (!isAdminState(auth) && !PUBLIC_ALLOWED_TABS.includes(activeTab)) {
       set({ activeTab: 'discover' });
       return;
     }
@@ -748,21 +766,50 @@ export const useRaffStore = create<RaffStore>((set, get) => ({
   },
 
   loginAdmin: async (password) => {
-    const res = await invokeRaff<{ ok: boolean; error?: string; state: AuthState }>('auth_login', {
-      password,
-    });
-    if (res.ok) {
-      set({ auth: res.state, adminLoginModalOpen: false, activeTab: 'overview' });
-      await get().hydrateAll();
+    try {
+      const res = await invokeRaff<{ ok: boolean; error?: string; state?: AuthState }>('auth_login', {
+        password,
+      });
+      if (res && res.ok) {
+        const nextAuth: AuthState = {
+          ...get().auth,
+          ...(res.state || {}),
+          enabled: true,
+          configured: true,
+          unlocked: true,
+          mode: 'admin',
+        };
+        set({ auth: nextAuth, adminLoginModalOpen: false, activeTab: 'overview' });
+        await get().hydrateAll();
+        get().pushToast(
+          'success',
+          get().lang === 'ar' ? 'تم فتح وضع الإدارة بنجاح' : 'Admin Mode unlocked'
+        );
+        return true;
+      }
+
+      // Login failed: strictly preserve Public Mode and never unlock admin UI!
+      const failedState: AuthState = {
+        ...get().auth,
+        ...(res?.state || {}),
+        enabled: true,
+        configured: true,
+        unlocked: false,
+        mode: 'public',
+      };
+      set({
+        auth: failedState,
+        activeTab: PUBLIC_ALLOWED_TABS.includes(get().activeTab) ? get().activeTab : 'discover',
+      });
       get().pushToast(
-        'success',
-        get().lang === 'ar' ? 'تم فتح وضع الإدارة' : 'Admin Mode unlocked'
+        'error',
+        res?.error || (get().lang === 'ar' ? 'كلمة المرور غير صحيحة' : 'Invalid password')
       );
-      return true;
+      return false;
+    } catch (err: any) {
+      get().pushToast('error', String(err?.message || err));
+      return false;
     }
-    set({ auth: res.state });
-    get().pushToast('error', res.error || (get().lang === 'ar' ? 'كلمة المرور غير صحيحة' : 'Invalid password'));
-    return false;
   },
 
   recoverAdminPassword: async (answer, newPassword) => {

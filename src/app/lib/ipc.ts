@@ -1097,15 +1097,23 @@ export async function invokeRaff<T = any>(
         db.auth.failedAttempts = 0;
         db.auth.remainingAttempts = 5;
         saveLocalDb(db);
-        return { ok: true, state: db.auth } as unknown as T;
+        return { ok: true, state: { ...db.auth, configured: db.auth.enabled } } as unknown as T;
       }
       db.auth.failedAttempts += 1;
       db.auth.remainingAttempts = Math.max(0, 5 - db.auth.failedAttempts);
+      db.auth.unlocked = false;
+      db.auth.mode = 'public';
       saveLocalDb(db);
       return {
         ok: false,
         error: 'كلمة المرور غير صحيحة',
-        state: db.auth,
+        state: {
+          ...db.auth,
+          enabled: true,
+          configured: true,
+          unlocked: false,
+          mode: 'public',
+        },
       } as unknown as T;
     }
 

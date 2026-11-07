@@ -609,6 +609,82 @@ body,
   border-top: 1px solid var(--border-subtle);
 }
 
+.dev-credit-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 11px;
+  transition: all 0.2s ease;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.dev-credit-badge:hover {
+  background: var(--brand-soft);
+  border-color: var(--brand-accent);
+  color: var(--brand-accent);
+  transform: translateY(-1px);
+}
+
+.dev-credit-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--emerald);
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+  flex-shrink: 0;
+}
+
+.dev-credit-text {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-sans);
+}
+
+.dev-credit-text small {
+  color: var(--text-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dev-credit-text b {
+  font-family: var(--font-numeric);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.dev-credit-badge:hover .dev-credit-text b {
+  color: var(--brand-accent);
+}
+
+.dev-credit-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--brand-soft);
+  border: 1px solid rgba(216, 174, 104, 0.25);
+  color: var(--brand-accent);
+  text-decoration: none;
+  font-size: 11px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+}
+
+.dev-credit-inline:hover {
+  background: rgba(216, 174, 104, 0.2);
+  border-color: var(--brand-accent);
+}
+
 /* ============================================================================
    7. Viewport Stage & Internal Scroll Containers (Zero Outer Page Scroll)
    ============================================================================ */

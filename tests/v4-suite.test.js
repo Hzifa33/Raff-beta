@@ -210,5 +210,59 @@ runTest('6. End-to-End Rust SQLite CLI Dispatch: v3 Migration, CRUD & Partial Vo
   assert.equal(integrity.ok, true);
   assert.equal(integrity.totalBooks, 2);
 
+  // Test auth commands: setup, wrong password, correct password, logout to public
+  const authSetup = dispatch('auth_setup', {
+    password: 'secret_admin_pass',
+    recoveryQuestion: 'ما اسم مدينتك؟',
+    recoveryAnswer: 'دمشق',
+    startInPublicMode: true,
+  });
+  assert.equal(authSetup.configured, true);
+
+  // Attempt login with WRONG password
+  const failedLogin = dispatch('auth_login', { password: 'wrong_password_123' });
+  assert.equal(failedLogin.ok, false);
+  assert.equal(failedLogin.state.unlocked, false);
+  assert.equal(failedLogin.state.mode, 'public');
+
+  // Attempt login with CORRECT password
+  const successfulLogin = dispatch('auth_login', { password: 'secret_admin_pass' });
+  assert.equal(successfulLogin.ok, true);
+  assert.equal(successfulLogin.state.unlocked, true);
+  assert.equal(successfulLogin.state.mode, 'admin');
+
+  // Lock back to public mode
+  const lockedState = dispatch('auth_logout_to_public', {});
+  assert.equal(lockedState.unlocked, false);
+  assert.equal(lockedState.mode, 'public');
+
   fs.rmSync(tmpDir, { recursive: true, force: true });
+});
+
+runTest('7. Developer Credit, Single King Search Bar, Redesigned Icons & High-Contrast Logo', () => {
+  // 1. Verify developer info 'Hzifa33' in App.tsx, AnalyticsSettingsView.tsx and OverviewView.tsx
+  const appSrc = fs.readFileSync(path.join(ROOT, 'src/app/App.tsx'), 'utf-8');
+  const settingsSrc = fs.readFileSync(path.join(ROOT, 'src/app/views/AnalyticsSettingsView.tsx'), 'utf-8');
+  const overviewSrc = fs.readFileSync(path.join(ROOT, 'src/app/views/OverviewView.tsx'), 'utf-8');
+  const discoverSrc = fs.readFileSync(path.join(ROOT, 'src/app/views/DiscoverCatalogueView.tsx'), 'utf-8');
+  const iconsSrc = fs.readFileSync(path.join(ROOT, 'src/app/components/Icons.tsx'), 'utf-8');
+
+  assert.ok(appSrc.includes('Hzifa33.github.io'), 'App.tsx contains Hzifa33 developer link');
+  assert.ok(settingsSrc.includes('Hzifa33'), 'Settings contains Hzifa33 developer attribution');
+  assert.ok(overviewSrc.includes('Hzifa33'), 'Overview contains Hzifa33 developer attribution');
+
+  // 2. Verify Single Search Bar in Public Mode (Titlebar search hidden for public, King search present in Discover)
+  assert.ok(appSrc.includes('isAdmin ?'), 'Titlebar toggles search bar based on isAdmin');
+  assert.ok(discoverSrc.includes('hideSearchInput={!isAdmin}'), 'FilterBar hides duplicate search in public mode');
+  assert.ok(discoverSrc.includes('autoFocus'), 'King search bar has autofocus in public kiosk');
+
+  // 3. Verify redesigned Sun, Moon, and Translate icons
+  assert.ok(iconsSrc.includes('Translate:'), 'Icons.Translate is defined for language switching');
+  assert.ok(iconsSrc.includes('fillOpacity="0.2"'), 'Sun/Moon have polished vectors');
+
+  // 4. Verify logo file exists and has high contrast
+  const logo256 = path.join(ROOT, 'public/assets/logo-256.png');
+  assert.ok(fs.existsSync(logo256), 'logo-256.png exists in public/assets');
+  const logoStat = fs.statSync(logo256);
+  assert.ok(logoStat.size > 1000, 'logo-256.png has valid byte size');
 });

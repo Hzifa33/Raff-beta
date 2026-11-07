@@ -1653,6 +1653,18 @@ export function SettingsView() {
                           ? 'يعمل بالكامل دون اتصال بالإنترنت مع حفظ فوري وآمن للبيانات.'
                           : '100% offline-first desktop suite with automatic data protection.'}
                       </div>
+                      <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <a
+                          href="https://Hzifa33.github.io"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="dev-credit-inline"
+                          title={isAr ? 'تطوير Hzifa33' : 'Developed by Hzifa33'}
+                        >
+                          <span className="dev-credit-dot" />
+                          <span>{isAr ? 'تطوير المهندس' : 'Developed by'}: <b>Hzifa33</b> (GitHub: Hzifa33)</span>
+                        </a>
+                      </div>
                     </div>
                   </div>
 

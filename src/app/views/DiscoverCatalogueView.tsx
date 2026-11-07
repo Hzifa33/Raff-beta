@@ -4,6 +4,7 @@ import { translations } from '../i18n/translations';
 import { computeBookAvailability, normalizeArabic } from '../lib/domain';
 import { Book } from '../types';
 import { Icon } from '../components/Icons';
+import { isAdminState } from '../store/useRaffStore';
 
 function useFilteredBooks(): Book[] {
   const {
@@ -70,7 +71,7 @@ function useFilteredBooks(): Book[] {
   ]);
 }
 
-export function FilterBar({ totalCount }: { totalCount: number }) {
+export function FilterBar({ totalCount, hideSearchInput = false }: { totalCount: number; hideSearchInput?: boolean }) {
   const {
     lang,
     meta,
@@ -110,17 +111,21 @@ export function FilterBar({ totalCount }: { totalCount: number }) {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '1.6fr repeat(6, minmax(105px, 1fr)) auto',
+          gridTemplateColumns: hideSearchInput
+            ? 'repeat(6, minmax(115px, 1fr)) auto'
+            : '1.6fr repeat(6, minmax(105px, 1fr)) auto',
           gap: 7,
           alignItems: 'center',
         }}
       >
-        <input
-          className="vertix-input"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder={t.searchPlaceholder}
-        />
+        {!hideSearchInput && (
+          <input
+            className="vertix-input"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={t.searchPlaceholder}
+          />
+        )}
 
         <select
           className="vertix-select"
@@ -318,6 +323,8 @@ export function DiscoverView() {
     lang,
     books,
     auth,
+    searchQuery,
+    setSearchQuery,
     setActiveTab,
     setInspectedBook,
     setBorrowingBook,
@@ -327,43 +334,119 @@ export function DiscoverView() {
   } = useRaffStore();
   const t = translations[lang];
   const filtered = useFilteredBooks();
-  const isAdmin = !auth?.enabled || (auth?.unlocked && auth?.mode === 'admin');
+  const isAdmin = isAdminState(auth);
 
   return (
     <div className="stage-view">
-      {/* Public Kiosk Welcome Banner when in Read-Only Public Mode */}
-      {!isAdmin && (
+      {/* Public Kiosk Hero Banner & King Search Bar when in Read-Only Public Mode */}
+      {!isAdmin ? (
         <div
           className="glass-panel"
           style={{
-            padding: '10px 14px',
+            padding: '16px 20px',
             background: 'var(--brand-gradient)',
             color: '#fff',
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
+            flexDirection: 'column',
+            gap: 12,
             flexShrink: 0,
+            borderRadius: 'var(--radius-lg)',
+            boxShadow: 'var(--shadow-md)',
+            border: '1px solid rgba(216, 174, 104, 0.3)',
           }}
         >
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 14 }}>
-              {lang === 'ar'
-                ? 'مرحباً بك في فهرس المكتبة العام (وضع القراءة والبحث)'
-                : 'Welcome to the Public Library Kiosk (Browse & Search Mode)'}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 16, letterSpacing: '-0.01em' }}>
+                {lang === 'ar'
+                  ? 'مرحباً بك في فهرس المكتبة العام'
+                  : 'Welcome to the Public Library Catalogue'}
+              </div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', marginTop: 2 }}>
+                {lang === 'ar'
+                  ? `ابحث في رصيد المكتبة (${books.length.toLocaleString('en-US')} عنوان مفهرس) بالعنوان، المؤلف، التصنيف، أو الرقم المرجعي.`
+                  : `Search across ${books.length.toLocaleString('en-US')} catalogued titles by title, author, category, or reference.`}
+              </div>
             </div>
-            <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.8)' }}>
-              {lang === 'ar'
-                ? `يتضمن الفهرس حالياً ${books.length.toLocaleString('en-US')} عنوان متاح للبحث الفوري بالاسم أو المؤلف أو الرقم المرجعي.`
-                : `Browse and search across ${books.length.toLocaleString('en-US')} catalogued titles by title, author, or reference number.`}
-            </div>
+            <span
+              className="hero-badge"
+              style={{
+                background: 'rgba(216, 174, 104, 0.25)',
+                borderColor: 'rgba(216, 174, 104, 0.5)',
+                color: '#fef3c7',
+                fontSize: 12,
+                padding: '4px 12px',
+              }}
+            >
+              {books.length.toLocaleString('en-US')} {lang === 'ar' ? 'عنوان متاح' : 'Available Titles'}
+            </span>
           </div>
-          <span className="hero-badge">
-            {books.length.toLocaleString('en-US')} {lang === 'ar' ? 'عنوان' : 'Titles'}
-          </span>
-        </div>
-      )}
 
-      <FilterBar totalCount={filtered.length} />
+          {/* Unified King Search Bar */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '0 16px',
+              height: 48,
+              borderRadius: 14,
+              background: 'var(--bg-surface)',
+              border: '2px solid var(--brand-accent)',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
+            }}
+          >
+            <Icon.Search style={{ width: 22, height: 22, color: 'var(--brand-accent)', flexShrink: 0 }} />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={lang === 'ar' ? 'اكتب اسم الكتاب، اسم المؤلف، الرقم المرجعي...' : 'Type book title, author name, reference number...'}
+              style={{
+                flex: 1,
+                border: 'none',
+                outline: 'none',
+                background: 'transparent',
+                color: 'var(--text-primary)',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 15,
+                fontWeight: 600,
+              }}
+              autoFocus
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  fontSize: 16,
+                  fontWeight: 700,
+                }}
+              >
+                ✕
+              </button>
+            )}
+            <span
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                fontFamily: 'var(--font-numeric)',
+                color: 'var(--brand-accent)',
+                padding: '2px 8px',
+                borderRadius: 8,
+                background: 'var(--brand-soft)',
+              }}
+            >
+              {filtered.length.toLocaleString('en-US')} {lang === 'ar' ? 'نتيجة' : 'results'}
+            </span>
+          </div>
+        </div>
+      ) : null}
+
+      <FilterBar totalCount={filtered.length} hideSearchInput={!isAdmin} />
 
       <div className="scroll-region">
         {books.length === 0 ? (
@@ -519,7 +602,7 @@ export function CatalogueView() {
   } = useRaffStore();
   const t = translations[lang];
   const filtered = useFilteredBooks();
-  const isAdmin = !auth?.enabled || (auth?.unlocked && auth?.mode === 'admin');
+  const isAdmin = isAdminState(auth);
 
   const allSelected =
     filtered.length > 0 && filtered.every((b) => selectedBookIds.includes(b.id));

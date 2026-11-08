@@ -762,7 +762,7 @@ export function CatalogueView() {
                   currentSort={sortBy}
                   currentDir={sortDirection}
                   onToggle={toggleSort}
-                  style={{ width: 88 }}
+                  style={{ width: 80 }}
                 />
                 <SortableHeader
                   field="title"
@@ -770,7 +770,7 @@ export function CatalogueView() {
                   currentSort={sortBy}
                   currentDir={sortDirection}
                   onToggle={toggleSort}
-                  style={{ width: '25%' }}
+                  style={{ width: '28%' }}
                 />
                 <SortableHeader
                   field="author"
@@ -778,7 +778,7 @@ export function CatalogueView() {
                   currentSort={sortBy}
                   currentDir={sortDirection}
                   onToggle={toggleSort}
-                  style={{ width: '14%' }}
+                  style={{ width: '15%' }}
                 />
                 <SortableHeader
                   field="category"
@@ -786,7 +786,7 @@ export function CatalogueView() {
                   currentSort={sortBy}
                   currentDir={sortDirection}
                   onToggle={toggleSort}
-                  style={{ width: '12%' }}
+                  style={{ width: '13%' }}
                 />
                 <SortableHeader
                   field="publisher"
@@ -794,7 +794,7 @@ export function CatalogueView() {
                   currentSort={sortBy}
                   currentDir={sortDirection}
                   onToggle={toggleSort}
-                  style={{ width: '13%' }}
+                  style={{ width: '14%' }}
                 />
                 <SortableHeader
                   field="shelf"
@@ -802,7 +802,7 @@ export function CatalogueView() {
                   currentSort={sortBy}
                   currentDir={sortDirection}
                   onToggle={toggleSort}
-                  style={{ width: 68 }}
+                  style={{ width: 58 }}
                 />
                 <SortableHeader
                   field="copies"
@@ -810,7 +810,7 @@ export function CatalogueView() {
                   currentSort={sortBy}
                   currentDir={sortDirection}
                   onToggle={toggleSort}
-                  style={{ width: 56 }}
+                  style={{ width: 52 }}
                 />
                 <SortableHeader
                   field="status"
@@ -818,19 +818,17 @@ export function CatalogueView() {
                   currentSort={sortBy}
                   currentDir={sortDirection}
                   onToggle={toggleSort}
-                  style={{ width: 78 }}
+                  style={{ width: 115 }}
                 />
-                <th style={{ width: 110, textAlign: 'center' }}>{lang === 'ar' ? 'إجراءات' : 'Actions'}</th>
+                <th style={{ width: 125, textAlign: 'center' }}>{lang === 'ar' ? 'إجراءات' : 'Actions'}</th>
               </tr>
             </thead>
             <tbody>
               {stream.visibleItems.map((book) => {
                 const avail = computeBookAvailability(book);
                 const checked = selectedBookIds.includes(book.id);
-                const titleLen = book.title.length;
-                const titleFontSize = titleLen > 50 ? '10.5px' : titleLen > 28 ? '11.5px' : '12.5px';
                 return (
-                  <tr key={book.id} onClick={() => setInspectedBook(book)} style={{ cursor: 'pointer', height: 40 }}>
+                  <tr key={book.id} onClick={() => setInspectedBook(book)} style={{ cursor: 'pointer' }}>
                     {isAdmin && (
                       <td onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center', padding: '0 4px' }}>
                         <input
@@ -840,24 +838,20 @@ export function CatalogueView() {
                         />
                       </td>
                     )}
-                    <td style={{ overflow: 'hidden' }}>
+                    <td>
                       <span className="ref-chip">{book.referenceNumber}</span>
                     </td>
-                    <td
-                      title={book.title}
-                      style={{
-                        fontWeight: 700,
-                        fontSize: titleFontSize,
-                        overflow: 'hidden',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+                    <td title={book.title} style={{ fontWeight: 700 }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
                         <span
                           style={{
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
                             overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                            display: 'inline-block',
+                            lineHeight: 1.35,
+                            fontSize: '12.8px',
+                            wordBreak: 'break-word',
                           }}
                         >
                           {book.title}
@@ -865,11 +859,15 @@ export function CatalogueView() {
                         {book.volumes > 1 && (
                           <span
                             style={{
-                              marginInlineStart: 5,
                               fontSize: 10,
                               color: 'var(--brand-accent)',
                               fontWeight: 700,
                               flexShrink: 0,
+                              whiteSpace: 'nowrap',
+                              padding: '1px 5px',
+                              borderRadius: 4,
+                              background: 'var(--brand-soft)',
+                              marginTop: 1,
                             }}
                           >
                             ({book.volumes} {t.volumesLabel})
@@ -877,30 +875,60 @@ export function CatalogueView() {
                         )}
                       </div>
                     </td>
-                    <td title={book.author || ''} style={{ overflow: 'hidden' }}>
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
+                    <td title={book.author || ''}>
+                      <span
+                        style={{
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                          lineHeight: 1.35,
+                          fontSize: '12.2px',
+                          color: 'var(--text-primary)',
+                        }}
+                      >
                         {book.author || '—'}
                       </span>
                     </td>
-                    <td title={book.category || ''} style={{ overflow: 'hidden' }}>
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
+                    <td title={book.category || ''}>
+                      <span
+                        style={{
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                          lineHeight: 1.35,
+                          fontSize: '11.8px',
+                          color: 'var(--text-secondary)',
+                        }}
+                      >
                         {book.category || '—'}
                       </span>
                     </td>
-                    <td title={book.publisher || ''} style={{ overflow: 'hidden' }}>
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
+                    <td title={book.publisher || ''}>
+                      <span
+                        style={{
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                          lineHeight: 1.35,
+                          fontSize: '11.8px',
+                          color: 'var(--text-secondary)',
+                        }}
+                      >
                         {book.publisher || '—'}
                       </span>
                     </td>
-                    <td title={book.shelf || ''} style={{ overflow: 'hidden' }}>
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
+                    <td title={book.shelf || ''} style={{ textAlign: 'center' }}>
+                      <span className="meta-pill" style={{ fontSize: '11px', padding: '2px 6px' }}>
                         {book.shelf || '—'}
                       </span>
                     </td>
-                    <td style={{ fontFamily: 'var(--font-numeric)', fontWeight: 700, textAlign: 'center' }}>
+                    <td style={{ fontFamily: 'var(--font-numeric)', fontWeight: 700, textAlign: 'center', fontSize: '12.5px' }}>
                       {avail.availableCopies}/{avail.copiesTotal}
                     </td>
-                    <td>
+                    <td style={{ textAlign: 'center', padding: '0 4px' }}>
                       <span
                         className={`status-badge ${
                           avail.state === 'available'
@@ -909,6 +937,18 @@ export function CatalogueView() {
                             ? 'status-partial'
                             : 'status-borrowed'
                         }`}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '3px 8px',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          whiteSpace: 'nowrap',
+                          lineHeight: 1.1,
+                          width: 'fit-content',
+                          maxWidth: '100%',
+                        }}
                       >
                         {avail.state === 'available'
                           ? t.statusAvailable
@@ -917,12 +957,12 @@ export function CatalogueView() {
                           : t.statusBorrowed}
                       </span>
                     </td>
-                    <td onClick={(e) => e.stopPropagation()}>
-                      <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
+                    <td onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center' }}>
+                      <div style={{ display: 'inline-flex', gap: 4, alignItems: 'center', justifyContent: 'center' }}>
                         {isAdmin && avail.availableCopies > 0 && (
                           <button
                             className="btn btn-primary"
-                            style={{ height: 26, padding: '0 7px', fontSize: 10.5 }}
+                            style={{ height: 26, padding: '0 8px', fontSize: 11, whiteSpace: 'nowrap' }}
                             onClick={() => setBorrowingBook(book)}
                           >
                             {t.borrowAction}
@@ -931,7 +971,7 @@ export function CatalogueView() {
                         {isAdmin && avail.activeLoans.length > 0 && (
                           <button
                             className="btn btn-ghost"
-                            style={{ height: 26, padding: '0 7px', fontSize: 10.5 }}
+                            style={{ height: 26, padding: '0 8px', fontSize: 11, whiteSpace: 'nowrap' }}
                             onClick={() => setReturningBook({ book })}
                           >
                             {t.returnAction}
@@ -940,7 +980,7 @@ export function CatalogueView() {
                         {isAdmin && (
                           <button
                             className="btn btn-ghost"
-                            style={{ height: 26, padding: '0 7px', fontSize: 10.5 }}
+                            style={{ height: 26, padding: '0 8px', fontSize: 11, whiteSpace: 'nowrap' }}
                             onClick={() => setEditingBook(book)}
                           >
                             {t.editAction}
@@ -948,7 +988,7 @@ export function CatalogueView() {
                         )}
                         <button
                           className="btn btn-ghost"
-                          style={{ height: 26, padding: '0 6px', fontSize: 11 }}
+                          style={{ height: 26, width: 26, padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
                           onClick={() => setLabelPreviewBook(book)}
                           title={t.printLabelAction}
                         >

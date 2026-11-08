@@ -2355,6 +2355,10 @@ impl Database {
             loan_duration_days: loan_days,
             scanner_gap_ms: scanner_gap,
             scanner_terminator: terminator,
+            sound_enabled: patch
+                .get("soundEnabled")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(base.sound_enabled),
             saved_filters,
         }
     }

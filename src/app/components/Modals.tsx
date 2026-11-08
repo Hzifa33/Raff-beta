@@ -8,6 +8,7 @@ import {
   renderBarcodeSVG,
 } from '../lib/domain';
 import { Icon } from './Icons';
+import { printHtml } from '../lib/print';
 
 export function BookInspectorModal() {
   const {
@@ -750,24 +751,29 @@ export function LabelPreviewModal() {
   });
 
   const handlePrintSingle = () => {
-    const win = window.open('', '_blank', 'width=520,height=420');
-    if (win) {
-      win.document.write(`<!DOCTYPE html>
-        <html dir="rtl" lang="ar">
-        <body style="font-family:system-ui,sans-serif;text-align:center;padding:24px;">
-          <div style="border:1px solid #ccc;border-radius:10px;padding:16px;display:inline-block;">
-            <div style="font-size:11px;color:#555;font-weight:700;">${
-              settings.institutionName || 'مكتبة رَفّ'
-            }</div>
-            <div style="font-size:15px;font-weight:700;margin:4px 0;">${
-              labelPreviewBook.title
-            }</div>
-            <div>${svg}</div>
-          </div>
-          <script>window.onload=function(){window.print();};</script>
-        </body></html>`);
-      win.document.close();
-    }
+    printHtml(`<!DOCTYPE html>
+      <html dir="rtl" lang="ar">
+      <head>
+        <meta charset="UTF-8" />
+        <title>${labelPreviewBook.title}</title>
+        <style>
+          @page { margin: 6mm; }
+          body { font-family: system-ui, sans-serif; text-align: center; padding: 16px; margin: 0; background: #fff; color: #111; }
+          .label-card { border: 1px solid #ccc; border-radius: 8px; padding: 12px; display: inline-block; max-width: 320px; }
+          .inst { font-size: 8.5pt; color: #555; font-weight: 700; margin-bottom: 3px; }
+          .title { font-size: 11pt; font-weight: 700; margin-bottom: 6px; }
+          .shelf { font-size: 8pt; color: #444; margin-bottom: 6px; font-weight: 600; }
+          .bc svg { max-width: 100%; height: auto; }
+        </style>
+      </head>
+      <body>
+        <div class="label-card">
+          <div class="inst">${settings.institutionName || 'مكتبة رَفّ'}</div>
+          <div class="title">${labelPreviewBook.title}</div>
+          ${labelPreviewBook.shelf ? `<div class="shelf">الرف: ${labelPreviewBook.shelf}</div>` : ''}
+          <div class="bc">${svg}</div>
+        </div>
+      </body></html>`);
   };
 
   return (

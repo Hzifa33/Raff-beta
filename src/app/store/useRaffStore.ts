@@ -166,6 +166,7 @@ const DEFAULT_SETTINGS: Settings = {
   loanDurationDays: 30,
   scannerGapMs: 35,
   scannerTerminator: 'Enter',
+  soundEnabled: true,
   savedFilters: [],
 };
 

@@ -266,3 +266,32 @@ runTest('7. Developer Credit, Single King Search Bar, Redesigned Icons & High-Co
   const logoStat = fs.statSync(logo256);
   assert.ok(logoStat.size > 1000, 'logo-256.png has valid byte size');
 });
+
+runTest('8. Smart Tokenized Search, Acoustic Feedback, Universal Print & Desktop Hotkeys', () => {
+  // 1. Verify Sound Effects module
+  const soundPath = path.join(ROOT, 'src/app/lib/sound.ts');
+  assert.ok(fs.existsSync(soundPath), 'sound.ts exists');
+  const soundSrc = fs.readFileSync(soundPath, 'utf-8');
+  assert.ok(soundSrc.includes('AudioContext'), 'Uses Web Audio API');
+  assert.ok(soundSrc.includes("'beep'"), 'Includes barcode scan beep');
+  assert.ok(soundSrc.includes("'success'"), 'Includes success chime');
+
+  // 2. Verify Universal Print module
+  const printPath = path.join(ROOT, 'src/app/lib/print.ts');
+  assert.ok(fs.existsSync(printPath), 'print.ts exists');
+  const printSrc = fs.readFileSync(printPath, 'utf-8');
+  assert.ok(printSrc.includes('iframe'), 'Uses hidden iframe for reliable printing');
+
+  // 3. Verify Tokenized Multi-word Search
+  const discoverSrc = fs.readFileSync(path.join(ROOT, 'src/app/views/DiscoverCatalogueView.tsx'), 'utf-8');
+  assert.ok(discoverSrc.includes('tokens.every'), 'Implements tokenized multi-word search');
+
+  // 4. Verify Desktop Hotkeys in App.tsx
+  const appSrc = fs.readFileSync(path.join(ROOT, 'src/app/App.tsx'), 'utf-8');
+  assert.ok(appSrc.includes("e.key === 'Escape'"), 'Implements global Escape modal dismissal');
+  assert.ok(appSrc.includes("e.key.toLowerCase() === 'k'"), 'Implements Ctrl+K focus');
+  assert.ok(appSrc.includes("e.key.toLowerCase() === 'n'"), 'Implements Ctrl+N add book');
+  assert.ok(appSrc.includes("e.key.toLowerCase() === 'b'"), 'Implements Ctrl+B toggle sidebar');
+  assert.ok(appSrc.includes("e.key.toLowerCase() === 'd'"), 'Implements Ctrl+D toggle theme');
+  assert.ok(appSrc.includes("e.key.toLowerCase() === 'l'"), 'Implements Ctrl+L toggle lang');
+});

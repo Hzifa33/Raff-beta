@@ -71,6 +71,7 @@ export interface Settings {
   loanDurationDays: number;
   scannerGapMs: number;
   scannerTerminator: 'Enter' | 'Tab' | 'both';
+  soundEnabled?: boolean;
   savedFilters: SavedFilter[];
 }
 

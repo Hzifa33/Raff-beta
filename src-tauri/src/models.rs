@@ -144,6 +144,8 @@ pub struct Settings {
     pub scanner_gap_ms: u32,
     #[serde(default = "default_terminator")]
     pub scanner_terminator: String,
+    #[serde(default = "default_true")]
+    pub sound_enabled: bool,
     #[serde(default)]
     pub saved_filters: Vec<SavedFilter>,
 }
@@ -180,6 +182,7 @@ impl Default for Settings {
             loan_duration_days: 30,
             scanner_gap_ms: 35,
             scanner_terminator: "Enter".to_string(),
+            sound_enabled: true,
             saved_filters: Vec::new(),
         }
     }

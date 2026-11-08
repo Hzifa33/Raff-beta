@@ -39,6 +39,24 @@ function useFilteredBooks(): Book[] {
       if (searchField === 'series') return matchField(b.series);
       if (searchField === 'keywords') return (b.keywords || []).some(matchField);
 
+      // Smart Tokenized Multi-word Match across all fields
+      const tokens = q.split(/\s+/).filter(Boolean);
+      if (tokens.length > 1) {
+        return tokens.every((token) => {
+          const matchTok = (val: string) => normalizeArabic(val).includes(token);
+          return (
+            matchTok(b.title) ||
+            matchTok(b.author) ||
+            matchTok(b.publisher) ||
+            matchTok(b.category) ||
+            matchTok(b.referenceNumber) ||
+            matchTok(b.shelf) ||
+            matchTok(b.series) ||
+            (b.keywords || []).some(matchTok)
+          );
+        });
+      }
+
       return (
         matchField(b.title) ||
         matchField(b.author) ||
@@ -398,9 +416,15 @@ export function DiscoverView() {
           >
             <Icon.Search style={{ width: 22, height: 22, color: 'var(--brand-accent)', flexShrink: 0 }} />
             <input
+              id="public-king-search"
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && filtered.length === 1) {
+                  setInspectedBook(filtered[0]);
+                }
+              }}
               placeholder={lang === 'ar' ? 'اكتب اسم الكتاب، اسم المؤلف، الرقم المرجعي...' : 'Type book title, author name, reference number...'}
               style={{
                 flex: 1,

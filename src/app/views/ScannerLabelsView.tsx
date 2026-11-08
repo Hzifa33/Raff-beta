@@ -7,6 +7,8 @@ import {
   renderBarcodeSVG,
 } from '../lib/domain';
 import { Icon } from '../components/Icons';
+import { printHtml } from '../lib/print';
+import { playSound } from '../lib/sound';
 
 export function ScannerLabelsView() {
   const {
@@ -36,6 +38,7 @@ export function ScannerLabelsView() {
       (b) => b.referenceNumber.toLowerCase() === cleaned.toLowerCase()
     );
     if (!found) {
+      playSound('warning', settings.soundEnabled ?? true);
       pushToast(
         'error',
         isAr
@@ -44,6 +47,8 @@ export function ScannerLabelsView() {
       );
       return;
     }
+
+    playSound('beep', settings.soundEnabled ?? true);
 
     const avail = computeBookAvailability(found);
     if (scanAction === 'borrow') {
@@ -140,13 +145,8 @@ export function ScannerLabelsView() {
       </body>
       </html>`;
 
-    const win = window.open('', '_blank', 'width=980,height=720');
-    if (win) {
-      win.document.write(html);
-      win.document.close();
-    } else {
-      pushToast('info', isAr ? 'تم تجهيز صفحة الملصقات' : 'Label sheet prepared');
-    }
+    printHtml(html);
+    pushToast('success', isAr ? 'تم إرسال ورقة الملصقات للطباعة' : 'Label sheet sent to printer');
   };
 
   const filteredBooks = books.filter((b) => {

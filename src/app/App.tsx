@@ -18,6 +18,7 @@ import {
   LabelPreviewModal,
   ReturnLoanModal,
 } from './components/Modals';
+import { playSound } from './lib/sound';
 import { cleanReferenceText } from './lib/domain';
 import { isAdminState } from './store/useRaffStore';
 import {
@@ -83,10 +84,73 @@ export function App() {
           target.tagName === 'SELECT' ||
           target.isContentEditable);
 
+      // Global Escape: Dismiss active modals or clear search
+      if (e.key === 'Escape') {
+        const s = useRaffStore.getState();
+        if (s.inspectedBook) { s.setInspectedBook(null); return; }
+        if (s.editingBook) { s.setEditingBook(null); return; }
+        if (s.borrowingBook) { s.setBorrowingBook(null); return; }
+        if (s.returningBook) { s.setReturningBook(null); return; }
+        if (s.labelPreviewBook) { s.setLabelPreviewBook(null); return; }
+        if (s.bulkModalOpen) { s.setBulkModalOpen(false); return; }
+        if (s.adminLoginModalOpen) { s.setAdminLoginModalOpen(false); return; }
+        if (s.searchQuery) { s.setSearchQuery(''); return; }
+        if (target && typeof target.blur === 'function') { target.blur(); }
+        return;
+      }
+
+      // Ctrl/Cmd + K: Instant Focus Search Bar (Titlebar or King Search)
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        const searchInput = document.getElementById('global-quick-search') as HTMLInputElement | null;
+        const searchInput = (document.getElementById('global-quick-search') ||
+          document.getElementById('public-king-search')) as HTMLInputElement | null;
         searchInput?.focus();
+        searchInput?.select();
+        return;
+      }
+
+      // Ctrl/Cmd + N: Instant Add Book (Admin)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        const s = useRaffStore.getState();
+        if (isAdminState(s.auth)) {
+          s.setActiveTab('add');
+        }
+        return;
+      }
+
+      // Ctrl/Cmd + B: Toggle Sidebar
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        toggleSidebar();
+        return;
+      }
+
+      // Ctrl/Cmd + D: Toggle Light/Dark Theme
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        toggleTheme();
+        return;
+      }
+
+      // Ctrl/Cmd + L: Toggle Language (Arabic/English)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'l') {
+        e.preventDefault();
+        toggleLang();
+        return;
+      }
+
+      // Ctrl/Cmd + 1..6: Quick Switch Tabs
+      if ((e.ctrlKey || e.metaKey) && ['1', '2', '3', '4', '5', '6'].includes(e.key)) {
+        e.preventDefault();
+        const s = useRaffStore.getState();
+        const admin = isAdminState(s.auth);
+        if (e.key === '1') s.setActiveTab(admin ? 'overview' : 'discover');
+        else if (e.key === '2') s.setActiveTab('catalogue');
+        else if (e.key === '3' && admin) s.setActiveTab('add');
+        else if (e.key === '4' && admin) s.setActiveTab('loans');
+        else if (e.key === '5' && admin) s.setActiveTab('scanner');
+        else if (e.key === '6' && admin) s.setActiveTab('settings');
         return;
       }
 
@@ -100,10 +164,12 @@ export function App() {
           e.preventDefault();
           const code = cleanReferenceText(buffer);
           buffer = '';
+          playSound('beep', settings.soundEnabled ?? true);
           const matched = useRaffStore
             .getState()
             .books.find((b) => b.referenceNumber.toLowerCase() === code.toLowerCase());
           if (matched) {
+            playSound('success', settings.soundEnabled ?? true);
             setInspectedBook(matched);
             pushToast(
               'success',
@@ -112,6 +178,7 @@ export function App() {
                 : `Scanned barcode: ${matched.title}`
             );
           } else {
+            playSound('warning', settings.soundEnabled ?? true);
             setSearchQuery(code);
             setActiveTab('discover');
             pushToast(

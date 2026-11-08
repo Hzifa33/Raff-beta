@@ -3,6 +3,7 @@ import { useRaffStore } from '../store/useRaffStore';
 import { translations } from '../i18n/translations';
 import { Icon } from '../components/Icons';
 import { computeBookAvailability } from '../lib/domain';
+import { printHtml } from '../lib/print';
 
 export function OverviewView() {
   const {
@@ -36,18 +37,13 @@ export function OverviewView() {
 
   const handleQuickPrint = async () => {
     const html = await exportLibrary('html');
-    const win = window.open('', '_blank', 'width=1024,height=768');
-    if (win) {
-      win.document.write(html);
-      win.document.close();
-    } else {
-      pushToast(
-        'info',
-        lang === 'ar'
-          ? 'تم تجهيز التقرير المطبوع'
-          : 'Printable report generated'
-      );
-    }
+    printHtml(html);
+    pushToast(
+      'success',
+      lang === 'ar'
+        ? 'تم إرسال التقرير الشامل للطباعة'
+        : 'Comprehensive report sent to printer'
+    );
   };
 
   return (

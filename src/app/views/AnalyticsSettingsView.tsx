@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { SettingsSubTab, useRaffStore } from '../store/useRaffStore';
 import { computeBookAvailability } from '../lib/domain';
 import { Icon } from '../components/Icons';
+import { playSound } from '../lib/sound';
 
 type DimensionKey =
   | 'category'
@@ -940,6 +941,74 @@ export function SettingsView() {
                     </div>
                   )}
                 </div>
+
+                {/* Acoustic Feedback Setting */}
+                <div
+                  style={{
+                    padding: 14,
+                    borderRadius: 12,
+                    background: 'var(--bg-muted)',
+                    border: '1px solid var(--border-subtle)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 10,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 13 }}>
+                        {isAr ? 'التغذية الصوتية التفاعلية' : 'Interactive Audio Feedback'}
+                      </div>
+                      <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
+                        {isAr
+                          ? 'تشغيل نغمات هادئة فورية عند التقاط الباركود وإتمام الإعارات والعمليات.'
+                          : 'Play gentle instant audio tones upon barcode scans, loans, and actions.'}
+                      </div>
+                    </div>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={settings.soundEnabled ?? true}
+                        onChange={(e) => updateSettings({ soundEnabled: e.target.checked })}
+                      />
+                      <span style={{ fontSize: 12.5, fontWeight: 600 }}>
+                        {settings.soundEnabled ?? true
+                          ? isAr ? 'مفعل' : 'Enabled'
+                          : isAr ? 'معطل' : 'Disabled'}
+                      </span>
+                    </label>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
+                    <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                      {isAr ? 'تجربة النغمات:' : 'Test tones:'}
+                    </span>
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      style={{ height: 26, padding: '0 8px', fontSize: 11 }}
+                      onClick={() => playSound('beep', true)}
+                    >
+                      {isAr ? 'مسح باركود' : 'Scan Beep'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      style={{ height: 26, padding: '0 8px', fontSize: 11 }}
+                      onClick={() => playSound('success', true)}
+                    >
+                      {isAr ? 'نجاح عملية' : 'Success Chime'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      style={{ height: 26, padding: '0 8px', fontSize: 11 }}
+                      onClick={() => playSound('warning', true)}
+                    >
+                      {isAr ? 'تنبيه' : 'Warning'}
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -1754,6 +1823,57 @@ export function SettingsView() {
                     </span>
                   </div>
                 )}
+
+                {/* Keyboard Shortcuts Reference Card */}
+                <div
+                  style={{
+                    padding: 14,
+                    borderRadius: 12,
+                    background: 'var(--bg-muted)',
+                    border: '1px solid var(--border-subtle)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 10,
+                  }}
+                >
+                  <div style={{ fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Icon.Sparkles style={{ color: 'var(--brand-accent)', width: 15, height: 15 }} />
+                    <span>{isAr ? 'دليل اختصارات لوحة المفاتيح والإنتاجية' : 'Desktop Productivity Shortcuts'}</span>
+                  </div>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(2, 1fr)',
+                      gap: 8,
+                      fontSize: 11.5,
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', borderRadius: 6, background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+                      <span>{isAr ? 'التركيز على شريط البحث' : 'Focus Search Bar'}</span>
+                      <kbd style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--brand-accent)' }}>Ctrl + K</kbd>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', borderRadius: 6, background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+                      <span>{isAr ? 'إضافة كتاب جديد' : 'Add New Book'}</span>
+                      <kbd style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--brand-accent)' }}>Ctrl + N</kbd>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', borderRadius: 6, background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+                      <span>{isAr ? 'إظهار / طي القائمة الجانبية' : 'Toggle Sidebar'}</span>
+                      <kbd style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--brand-accent)' }}>Ctrl + B</kbd>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', borderRadius: 6, background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+                      <span>{isAr ? 'تبديل الوضع الليلي / النهاري' : 'Toggle Theme'}</span>
+                      <kbd style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--brand-accent)' }}>Ctrl + D</kbd>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', borderRadius: 6, background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+                      <span>{isAr ? 'تبديل لغة الواجهة' : 'Toggle Language'}</span>
+                      <kbd style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--brand-accent)' }}>Ctrl + L</kbd>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', borderRadius: 6, background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+                      <span>{isAr ? 'إغلاق النوافذ / مسح البحث' : 'Dismiss Modals / Clear Search'}</span>
+                      <kbd style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--brand-accent)' }}>Esc</kbd>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>

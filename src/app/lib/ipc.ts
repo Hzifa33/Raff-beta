@@ -319,6 +319,7 @@ function getDefaultSettings(): Settings {
     loanDurationDays: 30,
     scannerGapMs: 35,
     scannerTerminator: 'Enter',
+    soundEnabled: true,
     savedFilters: [
       {
         id: 'sf-1',

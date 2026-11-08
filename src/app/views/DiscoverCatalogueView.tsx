@@ -84,15 +84,16 @@ export function FilterBar({ totalCount, hideSearchInput = false }: { totalCount:
     shelfFilter !== 'all';
 
   return (
-    <div className="glass-panel" style={{ padding: '10px 12px', flexShrink: 0 }}>
+    <div className="glass-panel" style={{ padding: '8px 12px', flexShrink: 0, minWidth: 0, overflowX: 'auto' }}>
       <div
         style={{
           display: 'grid',
           gridTemplateColumns: hideSearchInput
-            ? 'repeat(6, minmax(115px, 1fr)) auto'
-            : '1.6fr repeat(6, minmax(105px, 1fr)) auto',
-          gap: 7,
+            ? 'repeat(6, minmax(88px, 1fr)) auto'
+            : 'minmax(130px, 1.3fr) repeat(6, minmax(88px, 1fr)) auto',
+          gap: 6,
           alignItems: 'center',
+          minWidth: 0,
         }}
       >
         {!hideSearchInput && (
@@ -762,7 +763,7 @@ export function CatalogueView() {
                   currentSort={sortBy}
                   currentDir={sortDirection}
                   onToggle={toggleSort}
-                  style={{ width: 80 }}
+                  style={{ width: 78 }}
                 />
                 <SortableHeader
                   field="title"
@@ -770,7 +771,7 @@ export function CatalogueView() {
                   currentSort={sortBy}
                   currentDir={sortDirection}
                   onToggle={toggleSort}
-                  style={{ width: '28%' }}
+                  style={{ width: '38%' }}
                 />
                 <SortableHeader
                   field="author"
@@ -778,7 +779,7 @@ export function CatalogueView() {
                   currentSort={sortBy}
                   currentDir={sortDirection}
                   onToggle={toggleSort}
-                  style={{ width: '15%' }}
+                  style={{ width: '24%' }}
                 />
                 <SortableHeader
                   field="category"
@@ -786,7 +787,7 @@ export function CatalogueView() {
                   currentSort={sortBy}
                   currentDir={sortDirection}
                   onToggle={toggleSort}
-                  style={{ width: '13%' }}
+                  style={{ width: '19%' }}
                 />
                 <SortableHeader
                   field="publisher"
@@ -794,7 +795,7 @@ export function CatalogueView() {
                   currentSort={sortBy}
                   currentDir={sortDirection}
                   onToggle={toggleSort}
-                  style={{ width: '14%' }}
+                  style={{ width: '19%' }}
                 />
                 <SortableHeader
                   field="shelf"
@@ -802,7 +803,7 @@ export function CatalogueView() {
                   currentSort={sortBy}
                   currentDir={sortDirection}
                   onToggle={toggleSort}
-                  style={{ width: 58 }}
+                  style={{ width: 54, textAlign: 'center' }}
                 />
                 <SortableHeader
                   field="copies"
@@ -810,7 +811,7 @@ export function CatalogueView() {
                   currentSort={sortBy}
                   currentDir={sortDirection}
                   onToggle={toggleSort}
-                  style={{ width: 52 }}
+                  style={{ width: 50, textAlign: 'center' }}
                 />
                 <SortableHeader
                   field="status"
@@ -818,9 +819,9 @@ export function CatalogueView() {
                   currentSort={sortBy}
                   currentDir={sortDirection}
                   onToggle={toggleSort}
-                  style={{ width: 115 }}
+                  style={{ width: 105, textAlign: 'center' }}
                 />
-                <th style={{ width: 125, textAlign: 'center' }}>{lang === 'ar' ? 'إجراءات' : 'Actions'}</th>
+                <th style={{ width: 150, textAlign: 'center' }}>{lang === 'ar' ? 'إجراءات' : 'Actions'}</th>
               </tr>
             </thead>
             <tbody>
@@ -928,7 +929,7 @@ export function CatalogueView() {
                     <td style={{ fontFamily: 'var(--font-numeric)', fontWeight: 700, textAlign: 'center', fontSize: '12.5px' }}>
                       {avail.availableCopies}/{avail.copiesTotal}
                     </td>
-                    <td style={{ textAlign: 'center', padding: '0 4px' }}>
+                    <td style={{ textAlign: 'center', padding: '6px 4px' }}>
                       <span
                         className={`status-badge ${
                           avail.state === 'available'
@@ -941,8 +942,8 @@ export function CatalogueView() {
                           display: 'inline-flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          padding: '3px 8px',
-                          fontSize: '11px',
+                          padding: '3px 7px',
+                          fontSize: '10.5px',
                           fontWeight: 700,
                           whiteSpace: 'nowrap',
                           lineHeight: 1.1,
@@ -957,13 +958,29 @@ export function CatalogueView() {
                           : t.statusBorrowed}
                       </span>
                     </td>
-                    <td onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center' }}>
-                      <div style={{ display: 'inline-flex', gap: 4, alignItems: 'center', justifyContent: 'center' }}>
+                    <td onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center', width: 150, padding: '6px 4px' }}>
+                      <div
+                        style={{
+                          display: 'inline-flex',
+                          gap: 3,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexWrap: 'nowrap',
+                          maxWidth: '100%',
+                        }}
+                      >
                         {isAdmin && avail.availableCopies > 0 && (
                           <button
                             className="btn btn-primary"
-                            style={{ height: 26, padding: '0 8px', fontSize: 11, whiteSpace: 'nowrap' }}
+                            style={{
+                              height: 25,
+                              padding: '0 7px',
+                              fontSize: 10.5,
+                              fontWeight: 700,
+                              whiteSpace: 'nowrap',
+                            }}
                             onClick={() => setBorrowingBook(book)}
+                            title={t.borrowAction}
                           >
                             {t.borrowAction}
                           </button>
@@ -971,8 +988,15 @@ export function CatalogueView() {
                         {isAdmin && avail.activeLoans.length > 0 && (
                           <button
                             className="btn btn-ghost"
-                            style={{ height: 26, padding: '0 8px', fontSize: 11, whiteSpace: 'nowrap' }}
+                            style={{
+                              height: 25,
+                              padding: '0 7px',
+                              fontSize: 10.5,
+                              fontWeight: 700,
+                              whiteSpace: 'nowrap',
+                            }}
                             onClick={() => setReturningBook({ book })}
+                            title={t.returnAction}
                           >
                             {t.returnAction}
                           </button>
@@ -980,15 +1004,34 @@ export function CatalogueView() {
                         {isAdmin && (
                           <button
                             className="btn btn-ghost"
-                            style={{ height: 26, padding: '0 8px', fontSize: 11, whiteSpace: 'nowrap' }}
+                            style={{
+                              height: 25,
+                              padding: '0 6px',
+                              fontSize: 10.5,
+                              fontWeight: 600,
+                              whiteSpace: 'nowrap',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 3,
+                            }}
                             onClick={() => setEditingBook(book)}
+                            title={t.editAction}
                           >
-                            {t.editAction}
+                            <Icon.Edit style={{ width: 11, height: 11 }} />
+                            <span>{t.editAction}</span>
                           </button>
                         )}
                         <button
                           className="btn btn-ghost"
-                          style={{ height: 26, width: 26, padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                          style={{
+                            height: 25,
+                            width: 25,
+                            padding: 0,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                          }}
                           onClick={() => setLabelPreviewBook(book)}
                           title={t.printLabelAction}
                         >

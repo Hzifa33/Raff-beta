@@ -546,28 +546,14 @@ export function SettingsView() {
                         placeholder={isAr ? 'مثال: مكتبة رَفّ المركزية' : 'e.g. RAFF Central Library'}
                       />
                     </div>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      <button
-                        className="btn btn-primary"
-                        style={{ width: 'fit-content' }}
-                        onClick={() => updateSettings({ institutionName: instName.trim() })}
-                      >
-                        <Icon.Check />
-                        <span>{isAr ? 'حفظ اسم المكتبة' : 'Save Library Name'}</span>
-                      </button>
-                      <button
-                        className="btn btn-ghost"
-                        style={{ width: 'fit-content' }}
-                        onClick={() => {
-                          localStorage.removeItem('raff_v4_setup_completed');
-                          window.location.reload();
-                        }}
-                        title={isAr ? 'إعادة تشغيل معالج التثبيت والتهيئة الذكي' : 'Relaunch Setup Wizard'}
-                      >
-                        <Icon.Sparkles />
-                        <span>{isAr ? 'معالج التهيئة والتثبيت الذكي' : 'Setup Wizard'}</span>
-                      </button>
-                    </div>
+                    <button
+                      className="btn btn-primary"
+                      style={{ width: 'fit-content' }}
+                      onClick={() => updateSettings({ institutionName: instName.trim() })}
+                    >
+                      <Icon.Check />
+                      <span>{isAr ? 'حفظ اسم المكتبة' : 'Save Library Name'}</span>
+                    </button>
                   </div>
 
                   {/* Institution Logo Upload & Preview */}

@@ -19,7 +19,6 @@ import {
   ReturnLoanModal,
 } from './components/Modals';
 import { IntroSplashScreen } from './components/IntroSplashScreen';
-import { SetupWizardModal } from './components/SetupWizardModal';
 import { playSound } from './lib/sound';
 import { cleanReferenceText } from './lib/domain';
 import { isAdminState } from './store/useRaffStore';
@@ -68,13 +67,6 @@ export function App() {
   const isAdmin = isAdminState(auth);
 
   const [showIntro, setShowIntro] = useState(true);
-  const [showSetupWizard, setShowSetupWizard] = useState(() => {
-    try {
-      return !localStorage.getItem('raff_v4_setup_completed');
-    } catch {
-      return false;
-    }
-  });
   const [isFullscreen, setIsFullscreen] = useState(true);
 
   const handleToggleFullscreen = async () => {
@@ -599,12 +591,8 @@ export function App() {
       <LabelPreviewModal />
       <AdminLoginModal />
 
-      {/* Cinematic Startup Splash & Smart First-Run Setup Experience */}
+      {/* Executive Cinematic Startup Splash */}
       {showIntro && <IntroSplashScreen onFinish={() => setShowIntro(false)} />}
-      <SetupWizardModal
-        isOpen={!showIntro && showSetupWizard}
-        onClose={() => setShowSetupWizard(false)}
-      />
 
       {/* Toast Stack */}
       {toasts.length > 0 && (

@@ -251,6 +251,19 @@ impl Database {
         }
 
         if !self.legacy_json_path.exists() {
+            // Also inspect legacy v3 locations (e.g. %APPDATA%\raff-library\raff-library.json)
+            if let Some(parent) = self.data_dir.parent() {
+                let v3_dir = parent.join("raff-library").join("raff-library.json");
+                let v3_ar = parent.join("رَفّ").join("raff-library.json");
+                if v3_dir.exists() {
+                    let _ = fs::copy(&v3_dir, &self.legacy_json_path);
+                } else if v3_ar.exists() {
+                    let _ = fs::copy(&v3_ar, &self.legacy_json_path);
+                }
+            }
+        }
+
+        if !self.legacy_json_path.exists() {
             return Ok(None);
         }
 

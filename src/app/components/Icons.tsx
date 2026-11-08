@@ -113,6 +113,16 @@ export const Icon = {
       <rect x="2.2" y="2.2" width="7.6" height="7.6" rx="1.2" />
     </svg>
   ),
+  Fullscreen: (p: React.SVGProps<SVGSVGElement>) => (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M1.5 4.5V1.5H4.5M10.5 4.5V1.5H7.5M1.5 7.5V10.5H4.5M10.5 7.5V10.5H7.5" />
+    </svg>
+  ),
+  ExitFullscreen: (p: React.SVGProps<SVGSVGElement>) => (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M4.5 1.5V4.5H1.5M7.5 1.5V4.5H10.5M4.5 10.5V7.5H1.5M7.5 10.5V7.5H10.5" />
+    </svg>
+  ),
   Close: (p: React.SVGProps<SVGSVGElement>) => (
     <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" {...p}>
       <path d="M2.8 2.8 9.2 9.2M9.2 2.8 2.8 9.2" />

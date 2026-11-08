@@ -484,9 +484,20 @@ impl AppState {
                 if url.starts_with("https://") || url.starts_with("http://") {
                     #[cfg(target_os = "windows")]
                     {
-                        let _ = std::process::Command::new("cmd")
-                            .args(["/C", "start", "", url])
-                            .spawn();
+                        use std::os::windows::process::CommandExt;
+                        const CREATE_NO_WINDOW: u32 = 0x08000000;
+                        // rundll32 with url.dll,FileProtocolHandler opens system browser silently without console flashing
+                        if std::process::Command::new("rundll32")
+                            .args(["url.dll,FileProtocolHandler", url])
+                            .creation_flags(CREATE_NO_WINDOW)
+                            .spawn()
+                            .is_err()
+                        {
+                            let _ = std::process::Command::new("cmd")
+                                .args(["/C", "start", "", url])
+                                .creation_flags(CREATE_NO_WINDOW)
+                                .spawn();
+                        }
                     }
                     #[cfg(target_os = "macos")]
                     {

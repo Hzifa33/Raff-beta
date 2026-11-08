@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useTransition } from 'react';
+import React, { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRaffStore } from './store/useRaffStore';
 import { translations } from './i18n/translations';
 import { Icon } from './components/Icons';
@@ -18,6 +18,8 @@ import {
   LabelPreviewModal,
   ReturnLoanModal,
 } from './components/Modals';
+import { IntroSplashScreen } from './components/IntroSplashScreen';
+import { SetupWizardModal } from './components/SetupWizardModal';
 import { playSound } from './lib/sound';
 import { cleanReferenceText } from './lib/domain';
 import { isAdminState } from './store/useRaffStore';
@@ -26,6 +28,7 @@ import {
   windowClose,
   windowMinimize,
   windowStartDragging,
+  windowToggleFullscreen,
   windowToggleMaximize,
 } from './lib/ipc';
 import './styles/vertix-raff.css';
@@ -64,6 +67,21 @@ export function App() {
   const t = translations[lang];
   const isAdmin = isAdminState(auth);
 
+  const [showIntro, setShowIntro] = useState(true);
+  const [showSetupWizard, setShowSetupWizard] = useState(() => {
+    try {
+      return !localStorage.getItem('raff_v4_setup_completed');
+    } catch {
+      return false;
+    }
+  });
+  const [isFullscreen, setIsFullscreen] = useState(true);
+
+  const handleToggleFullscreen = async () => {
+    const nextFs = await windowToggleFullscreen();
+    setIsFullscreen(nextFs);
+  };
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     document.documentElement.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
@@ -97,6 +115,13 @@ export function App() {
         if (s.adminLoginModalOpen) { s.setAdminLoginModalOpen(false); return; }
         if (s.searchQuery) { s.setSearchQuery(''); return; }
         if (target && typeof target.blur === 'function') { target.blur(); }
+        return;
+      }
+
+      // F11: Toggle Fullscreen & Hide Taskbar
+      if (e.key === 'F11') {
+        e.preventDefault();
+        handleToggleFullscreen();
         return;
       }
 
@@ -440,6 +465,22 @@ export function App() {
           {/* Custom Desktop Window Controls */}
           <div className="window-controls-group">
             <button
+              className={`win-ctrl-btn ${isFullscreen ? 'active-fs' : ''}`}
+              onClick={handleToggleFullscreen}
+              title={
+                isFullscreen
+                  ? lang === 'ar'
+                    ? 'إنهاء وضع ملء الشاشة (F11)'
+                    : 'Exit Fullscreen (F11)'
+                  : lang === 'ar'
+                  ? 'وضع ملء الشاشة الكامل وإخفاء شريط المهام (F11)'
+                  : 'Fullscreen Kiosk (F11)'
+              }
+              aria-label="Toggle Fullscreen"
+            >
+              {isFullscreen ? <Icon.ExitFullscreen /> : <Icon.Fullscreen />}
+            </button>
+            <button
               className="win-ctrl-btn"
               onClick={windowMinimize}
               title={t.winMinimize}
@@ -557,6 +598,13 @@ export function App() {
       <BulkUpdateModal />
       <LabelPreviewModal />
       <AdminLoginModal />
+
+      {/* Cinematic Startup Splash & Smart First-Run Setup Experience */}
+      {showIntro && <IntroSplashScreen onFinish={() => setShowIntro(false)} />}
+      <SetupWizardModal
+        isOpen={!showIntro && showSetupWizard}
+        onClose={() => setShowSetupWizard(false)}
+      />
 
       {/* Toast Stack */}
       {toasts.length > 0 && (

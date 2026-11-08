@@ -1316,6 +1316,34 @@ export async function windowToggleMaximize(): Promise<void> {
   }
 }
 
+export async function windowToggleFullscreen(): Promise<boolean> {
+  try {
+    if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      const win = getCurrentWindow();
+      const current = await win.isFullscreen();
+      await win.setFullscreen(!current);
+      return !current;
+    }
+  } catch (err) {
+    console.warn('Tauri windowToggleFullscreen error, falling back to HTML fullscreen', err);
+  }
+  try {
+    if (typeof document !== 'undefined') {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen?.();
+        return true;
+      } else {
+        await document.exitFullscreen?.();
+        return false;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return false;
+}
+
 export async function windowClose(): Promise<void> {
   try {
     if (typeof window !== 'undefined' && window.__TAURI_INTERNALS__?.invoke) {

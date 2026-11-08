@@ -1176,19 +1176,22 @@ html[dir="rtl"] * {
   color: #1c1613;
 }
 
-/* High-Density Sticky Header Tables */
+/* High-Density Sticky Header Tables (Strict Zero-Horizontal-Overflow) */
 .catalogue-table-wrap {
   flex: 1;
   min-height: 0;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   box-shadow: var(--shadow-sm);
+  max-width: 100%;
 }
 
 .catalogue-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
   font-size: 12.5px;
@@ -1204,16 +1207,23 @@ html[dir="rtl"] * {
   font-size: 11.5px;
   font-weight: 700;
   text-align: start;
-  padding: 9px 12px;
+  padding: 8px 8px;
   border-bottom: 1px solid var(--border-strong);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .catalogue-table tbody td {
-  padding: 8px 12px;
+  padding: 6px 8px;
+  height: 40px;
+  box-sizing: border-box;
   border-bottom: 1px solid var(--border-subtle);
   color: var(--text-primary);
   vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .catalogue-table tbody tr {
@@ -1561,4 +1571,339 @@ input[type="checkbox"]:active,
   height: auto !important;
   display: block;
 }
+
+/* ==========================================================================
+   Executive Cinematic Startup Intro Splash Screen
+   ========================================================================== */
+.raff-intro-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #080a09;
+  overflow: hidden;
+  user-select: none;
+  cursor: pointer;
+  transition: opacity 0.38s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.38s cubic-bezier(0.16, 1, 0.3, 1),
+              filter 0.38s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.raff-intro-closing {
+  opacity: 0 !important;
+  transform: scale(1.03) !important;
+  filter: blur(12px) !important;
+  pointer-events: none !important;
+}
+
+.raff-intro-backdrop {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 48%, rgba(22, 34, 27, 0.85) 0%, rgba(10, 14, 12, 0.95) 55%, #050706 100%);
+  pointer-events: none;
+}
+
+.raff-intro-orb-gold {
+  position: absolute;
+  width: 480px;
+  height: 480px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(212, 163, 89, 0.28) 0%, rgba(212, 163, 89, 0) 70%);
+  filter: blur(55px);
+  top: calc(50% - 240px);
+  left: calc(50% - 240px);
+  pointer-events: none;
+  animation: introOrbBreath 3.2s ease-in-out infinite alternate;
+}
+
+.raff-intro-orb-emerald {
+  position: absolute;
+  width: 420px;
+  height: 420px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(38, 166, 154, 0.22) 0%, rgba(38, 166, 154, 0) 70%);
+  filter: blur(60px);
+  top: calc(50% - 200px);
+  left: calc(50% - 200px);
+  pointer-events: none;
+  animation: introOrbBreathEmerald 4s ease-in-out infinite alternate;
+}
+
+.raff-intro-card {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 460px;
+  padding: 30px;
+  animation: introCardEnter 0.52s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.raff-intro-logo-stage {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.raff-intro-radiant-ring {
+  position: absolute;
+  width: 138px;
+  height: 138px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(212, 163, 89, 0.38);
+  box-shadow: 0 0 24px rgba(212, 163, 89, 0.22), inset 0 0 16px rgba(212, 163, 89, 0.15);
+  animation: introRingSpin 9s linear infinite;
+}
+
+.raff-intro-radiant-ring-outer {
+  position: absolute;
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  border: 1px dashed rgba(38, 166, 154, 0.35);
+  animation: introRingSpinReverse 15s linear infinite;
+}
+
+.raff-intro-logo-glow {
+  position: absolute;
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(212, 163, 89, 0.4) 0%, transparent 70%);
+  filter: blur(16px);
+  animation: introGlowPulse 2.4s ease-in-out infinite alternate;
+}
+
+.raff-intro-logo-wrapper {
+  position: relative;
+  width: 104px;
+  height: 104px;
+  border-radius: 26px;
+  overflow: hidden;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.65), 0 0 28px rgba(212, 163, 89, 0.3);
+  background: linear-gradient(145deg, #1d2620, #0d1310);
+  border: 1.5px solid rgba(212, 163, 89, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: introLogoScale 0.65s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.raff-intro-logo-img {
+  width: 90%;
+  height: 90%;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.5));
+}
+
+.raff-intro-sheen-sweep {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 20%, rgba(255, 255, 255, 0.45) 50%, transparent 75%);
+  transform: translateX(-150%);
+  animation: introSheen 1.3s cubic-bezier(0.16, 1, 0.3, 1) 0.25s forwards;
+  pointer-events: none;
+}
+
+.raff-intro-title-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 22px;
+}
+
+.raff-intro-brand-name {
+  font-family: var(--font-arabic);
+  font-size: 54px;
+  font-weight: 900;
+  margin: 0;
+  line-height: 1.1;
+  background: linear-gradient(135deg, #ffffff 0%, #fae2b1 40%, #d4a359 85%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 4px 22px rgba(212, 163, 89, 0.4));
+  letter-spacing: -0.5px;
+}
+
+.raff-intro-version-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(212, 163, 89, 0.3);
+  font-size: 11px;
+  font-weight: 800;
+  color: #fae2b1;
+  letter-spacing: 0.5px;
+}
+
+.raff-intro-version-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--brand-accent);
+}
+
+.raff-intro-version-num {
+  font-family: var(--font-numeric);
+  color: #ffffff;
+}
+
+.raff-intro-tagline {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.65);
+  font-weight: 500;
+}
+
+.raff-intro-loader-track {
+  width: 190px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 22px;
+}
+
+.raff-intro-loader-fill {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, #26a69a, #d4a359);
+  transform: translateX(-100%);
+  animation: introLoaderFill 1.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.raff-intro-dev-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(212, 163, 89, 0.25);
+  border-radius: 999px;
+  transition: all 0.2s ease;
+}
+
+.raff-intro-dev-icon {
+  width: 16px;
+  height: 16px;
+  filter: drop-shadow(0 0 6px rgba(212, 163, 89, 0.5));
+}
+
+.raff-intro-dev-text {
+  font-size: 11.5px;
+  color: #fae2b1;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.raff-intro-skip-hint {
+  margin-top: 14px;
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.3);
+  font-weight: 500;
+}
+
+@keyframes introCardEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes introLogoScale {
+  0% {
+    opacity: 0;
+    transform: scale(0.82) rotate(-3deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes introSheen {
+  0% {
+    transform: translateX(-150%);
+  }
+  100% {
+    transform: translateX(150%);
+  }
+}
+
+@keyframes introRingSpin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes introRingSpinReverse {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes introGlowPulse {
+  0% {
+    opacity: 0.45;
+    transform: scale(0.92);
+  }
+  100% {
+    opacity: 0.85;
+    transform: scale(1.12);
+  }
+}
+
+@keyframes introOrbBreath {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.2;
+  }
+  100% {
+    transform: scale(1.18);
+    opacity: 0.4;
+  }
+}
+
+@keyframes introOrbBreathEmerald {
+  0% {
+    transform: scale(1.15);
+    opacity: 0.35;
+  }
+  100% {
+    transform: scale(0.88);
+    opacity: 0.15;
+  }
+}
+
+@keyframes introLoaderFill {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(0%);
+  }
+}
+
 

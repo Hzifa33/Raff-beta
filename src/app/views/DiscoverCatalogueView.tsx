@@ -627,23 +627,25 @@ function SortableHeader({
   currentSort,
   currentDir,
   onToggle,
+  style,
 }: {
   field: string;
   label: string;
   currentSort: string;
   currentDir: 'asc' | 'desc';
   onToggle: (f: string) => void;
+  style?: React.CSSProperties;
 }) {
   const isActive = currentSort === field;
   return (
-    <th>
+    <th style={style}>
       <button
         type="button"
         className={`table-sort-btn ${isActive ? 'active' : ''}`}
         onClick={() => onToggle(field)}
         title={`${label} (${isActive ? (currentDir === 'asc' ? 'من الأعلى للأسفل ↑' : 'من الأسفل للأعلى ↓') : 'اضغط للفرز'})`}
       >
-        <span>{label}</span>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
         <span className={`sort-arrow-chip ${isActive ? 'active' : ''}`}>
           {isActive ? (currentDir === 'asc' ? '↑' : '↓') : '⇅'}
         </span>
@@ -742,7 +744,7 @@ export function CatalogueView() {
             <thead>
               <tr>
                 {isAdmin && (
-                  <th style={{ width: 36 }}>
+                  <th style={{ width: 34, textAlign: 'center', padding: '0 4px' }}>
                     <input
                       type="checkbox"
                       checked={allSelected}
@@ -760,6 +762,7 @@ export function CatalogueView() {
                   currentSort={sortBy}
                   currentDir={sortDirection}
                   onToggle={toggleSort}
+                  style={{ width: 88 }}
                 />
                 <SortableHeader
                   field="title"
@@ -767,6 +770,7 @@ export function CatalogueView() {
                   currentSort={sortBy}
                   currentDir={sortDirection}
                   onToggle={toggleSort}
+                  style={{ width: '25%' }}
                 />
                 <SortableHeader
                   field="author"
@@ -774,6 +778,7 @@ export function CatalogueView() {
                   currentSort={sortBy}
                   currentDir={sortDirection}
                   onToggle={toggleSort}
+                  style={{ width: '14%' }}
                 />
                 <SortableHeader
                   field="category"
@@ -781,6 +786,7 @@ export function CatalogueView() {
                   currentSort={sortBy}
                   currentDir={sortDirection}
                   onToggle={toggleSort}
+                  style={{ width: '12%' }}
                 />
                 <SortableHeader
                   field="publisher"
@@ -788,6 +794,7 @@ export function CatalogueView() {
                   currentSort={sortBy}
                   currentDir={sortDirection}
                   onToggle={toggleSort}
+                  style={{ width: '13%' }}
                 />
                 <SortableHeader
                   field="shelf"
@@ -795,6 +802,7 @@ export function CatalogueView() {
                   currentSort={sortBy}
                   currentDir={sortDirection}
                   onToggle={toggleSort}
+                  style={{ width: 68 }}
                 />
                 <SortableHeader
                   field="copies"
@@ -802,6 +810,7 @@ export function CatalogueView() {
                   currentSort={sortBy}
                   currentDir={sortDirection}
                   onToggle={toggleSort}
+                  style={{ width: 56 }}
                 />
                 <SortableHeader
                   field="status"
@@ -809,18 +818,21 @@ export function CatalogueView() {
                   currentSort={sortBy}
                   currentDir={sortDirection}
                   onToggle={toggleSort}
+                  style={{ width: 78 }}
                 />
-                <th>{lang === 'ar' ? 'إجراءات' : 'Actions'}</th>
+                <th style={{ width: 110, textAlign: 'center' }}>{lang === 'ar' ? 'إجراءات' : 'Actions'}</th>
               </tr>
             </thead>
             <tbody>
               {stream.visibleItems.map((book) => {
                 const avail = computeBookAvailability(book);
                 const checked = selectedBookIds.includes(book.id);
+                const titleLen = book.title.length;
+                const titleFontSize = titleLen > 50 ? '10.5px' : titleLen > 28 ? '11.5px' : '12.5px';
                 return (
-                  <tr key={book.id} onClick={() => setInspectedBook(book)} style={{ cursor: 'pointer' }}>
+                  <tr key={book.id} onClick={() => setInspectedBook(book)} style={{ cursor: 'pointer', height: 40 }}>
                     {isAdmin && (
-                      <td onClick={(e) => e.stopPropagation()}>
+                      <td onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center', padding: '0 4px' }}>
                         <input
                           type="checkbox"
                           checked={checked}
@@ -828,29 +840,64 @@ export function CatalogueView() {
                         />
                       </td>
                     )}
-                    <td>
+                    <td style={{ overflow: 'hidden' }}>
                       <span className="ref-chip">{book.referenceNumber}</span>
                     </td>
-                    <td style={{ fontWeight: 700 }}>
-                      {book.title}
-                      {book.volumes > 1 && (
+                    <td
+                      title={book.title}
+                      style={{
+                        fontWeight: 700,
+                        fontSize: titleFontSize,
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
                         <span
                           style={{
-                            marginInlineStart: 6,
-                            fontSize: 10.5,
-                            color: 'var(--brand-accent)',
-                            fontWeight: 600,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            display: 'inline-block',
                           }}
                         >
-                          ({book.volumes} {t.volumesLabel})
+                          {book.title}
                         </span>
-                      )}
+                        {book.volumes > 1 && (
+                          <span
+                            style={{
+                              marginInlineStart: 5,
+                              fontSize: 10,
+                              color: 'var(--brand-accent)',
+                              fontWeight: 700,
+                              flexShrink: 0,
+                            }}
+                          >
+                            ({book.volumes} {t.volumesLabel})
+                          </span>
+                        )}
+                      </div>
                     </td>
-                    <td>{book.author || '—'}</td>
-                    <td>{book.category || '—'}</td>
-                    <td>{book.publisher || '—'}</td>
-                    <td>{book.shelf || '—'}</td>
-                    <td style={{ fontFamily: 'var(--font-numeric)', fontWeight: 700 }}>
+                    <td title={book.author || ''} style={{ overflow: 'hidden' }}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
+                        {book.author || '—'}
+                      </span>
+                    </td>
+                    <td title={book.category || ''} style={{ overflow: 'hidden' }}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
+                        {book.category || '—'}
+                      </span>
+                    </td>
+                    <td title={book.publisher || ''} style={{ overflow: 'hidden' }}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
+                        {book.publisher || '—'}
+                      </span>
+                    </td>
+                    <td title={book.shelf || ''} style={{ overflow: 'hidden' }}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
+                        {book.shelf || '—'}
+                      </span>
+                    </td>
+                    <td style={{ fontFamily: 'var(--font-numeric)', fontWeight: 700, textAlign: 'center' }}>
                       {avail.availableCopies}/{avail.copiesTotal}
                     </td>
                     <td>
@@ -871,11 +918,11 @@ export function CatalogueView() {
                       </span>
                     </td>
                     <td onClick={(e) => e.stopPropagation()}>
-                      <div style={{ display: 'flex', gap: 5 }}>
+                      <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
                         {isAdmin && avail.availableCopies > 0 && (
                           <button
                             className="btn btn-primary"
-                            style={{ height: 26, padding: '0 8px', fontSize: 11 }}
+                            style={{ height: 26, padding: '0 7px', fontSize: 10.5 }}
                             onClick={() => setBorrowingBook(book)}
                           >
                             {t.borrowAction}
@@ -884,7 +931,7 @@ export function CatalogueView() {
                         {isAdmin && avail.activeLoans.length > 0 && (
                           <button
                             className="btn btn-ghost"
-                            style={{ height: 26, padding: '0 8px', fontSize: 11 }}
+                            style={{ height: 26, padding: '0 7px', fontSize: 10.5 }}
                             onClick={() => setReturningBook({ book })}
                           >
                             {t.returnAction}
@@ -893,7 +940,7 @@ export function CatalogueView() {
                         {isAdmin && (
                           <button
                             className="btn btn-ghost"
-                            style={{ height: 26, padding: '0 8px', fontSize: 11 }}
+                            style={{ height: 26, padding: '0 7px', fontSize: 10.5 }}
                             onClick={() => setEditingBook(book)}
                           >
                             {t.editAction}
@@ -901,7 +948,7 @@ export function CatalogueView() {
                         )}
                         <button
                           className="btn btn-ghost"
-                          style={{ height: 26, padding: '0 7px', fontSize: 11 }}
+                          style={{ height: 26, padding: '0 6px', fontSize: 11 }}
                           onClick={() => setLabelPreviewBook(book)}
                           title={t.printLabelAction}
                         >

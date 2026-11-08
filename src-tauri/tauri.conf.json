@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Raff",
+  "productName": "رَفّ",
   "version": "4.0.0",
   "identifier": "com.hzifa33.raff",
   "build": {
@@ -20,7 +20,7 @@
         "minHeight": 640,
         "decorations": false,
         "resizable": true,
-        "maximized": true,
+        "fullscreen": true,
         "center": true
       }
     ],
@@ -45,6 +45,11 @@
       "nsis": {
         "installMode": "currentUser",
         "installerIcon": "icons/icon.ico",
+        "installerHooks": "windows/hooks.nsh",
+        "languages": [
+          "Arabic",
+          "English"
+        ],
         "displayLanguageSelector": false
       }
     },

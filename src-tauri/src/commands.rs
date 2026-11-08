@@ -479,6 +479,30 @@ impl AppState {
                 }
                 Ok(updater.get_status())
             }
+            "open_external_url" => {
+                let url = args.get("url").and_then(|v| v.as_str()).unwrap_or("");
+                if url.starts_with("https://") || url.starts_with("http://") {
+                    #[cfg(target_os = "windows")]
+                    {
+                        let _ = std::process::Command::new("cmd")
+                            .args(["/C", "start", "", url])
+                            .spawn();
+                    }
+                    #[cfg(target_os = "macos")]
+                    {
+                        let _ = std::process::Command::new("open")
+                            .arg(url)
+                            .spawn();
+                    }
+                    #[cfg(target_os = "linux")]
+                    {
+                        let _ = std::process::Command::new("xdg-open")
+                            .arg(url)
+                            .spawn();
+                    }
+                }
+                Ok(json!({ "opened": true, "url": url }))
+            }
             "fs_get_roots" => {
                 self.check_admin()?;
                 let db = self.db.lock().map_err(|e| e.to_string())?;

@@ -4,6 +4,7 @@ import { translations } from '../i18n/translations';
 import { Icon } from '../components/Icons';
 import { computeBookAvailability } from '../lib/domain';
 import { printHtml } from '../lib/print';
+import { openExternalUrl } from '../lib/ipc';
 
 export function OverviewView() {
   const {
@@ -132,8 +133,16 @@ export function OverviewView() {
                     rel="noopener noreferrer"
                     className="dev-credit-inline"
                     title={lang === 'ar' ? 'تطوير Hzifa33' : 'Developed by Hzifa33'}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      openExternalUrl('https://Hzifa33.github.io');
+                    }}
                   >
-                    <span className="dev-credit-dot" />
+                    <img
+                      src="./assets/dev-logo.svg"
+                      alt="Hzifa33"
+                      style={{ width: 13, height: 13, borderRadius: 3 }}
+                    />
                     <span>{lang === 'ar' ? 'تطوير' : 'Dev'}: <b>Hzifa33</b></span>
                   </a>
                 </div>

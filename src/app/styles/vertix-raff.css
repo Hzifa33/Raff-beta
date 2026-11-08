@@ -84,6 +84,17 @@
   --radius-xl: 18px;
   --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
 
+  /* 20-Rule Bespoke Precision Motion & Interaction Tokens */
+  --ease-entrance: cubic-bezier(0.16, 1, 0.3, 1); /* Rule 1: Ease-out for entrances */
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);         /* Rule 15: Exits (20% shorter) */
+  --ease-move: cubic-bezier(0.4, 0, 0.2, 1);       /* Rule 9: Ease-in-out for moves */
+  --ease-arc: cubic-bezier(0.25, 0.1, 0.25, 1);    /* Rule 7: Natural arcs */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);     /* Rule 13: Clean, no bounce */
+
+  --dur-dropdown: 200ms;                          /* Rule 2: Dropdowns at 150-250ms */
+  --dur-enter: 200ms;                             /* Standard entrance */
+  --dur-exit: 160ms;                              /* Rule 15: Exits 20% shorter */
+
   --vt-x: 50vw;
   --vt-y: 25px;
   --vt-r: 150vw;
@@ -620,7 +631,7 @@ body,
   color: var(--text-secondary);
   text-decoration: none;
   font-size: 11px;
-  transition: all 0.2s ease;
+  transition: all 0.2s var(--ease-arc);
   justify-content: center;
   margin-top: 4px;
 }
@@ -630,6 +641,19 @@ body,
   border-color: var(--brand-accent);
   color: var(--brand-accent);
   transform: translateY(-1px);
+}
+
+.dev-credit-avatar-img {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  object-fit: contain;
+  flex-shrink: 0;
+  transition: transform 0.2s var(--ease-arc);
+}
+
+.dev-credit-badge:hover .dev-credit-avatar-img {
+  transform: scale(1.15) rotate(3deg);
 }
 
 .dev-credit-dot {
@@ -1340,3 +1364,201 @@ html[dir="rtl"] * {
   border-radius: var(--radius-lg);
   gap: 8px;
 }
+
+/* ============================================================================
+   20-Rule Precision Motion & Interaction Architecture
+   ============================================================================ */
+
+/* Rule 4 & 14: Scale to 0.97 on press & Don't tween while held */
+button:active,
+.btn:active,
+.sidebar-nav-item:active,
+.win-ctrl-btn:active,
+.mode-switch-pill:active,
+.theme-toggle-orb:active,
+.table-sort-btn:active,
+.sort-dir-btn:active,
+.dev-credit-badge:active,
+.bento-book-card:active {
+  transform: scale(0.97) !important;
+  transition: transform 40ms var(--ease-entrance) !important;
+}
+
+/* Rule 5: Stretch moving knobs 12% */
+input[type="checkbox"]:active,
+.switch-input:active + .switch-slider::before,
+.theme-toggle-orb:active svg {
+  transform: scaleX(1.12);
+  transition: transform 60ms var(--ease-arc);
+}
+
+/* Rule 1, 3 & 6: Ease-out entrances, Stagger list rows by 30ms, Stagger as details settle */
+.catalogue-table tbody tr {
+  animation: tableRowStagger 0.22s var(--ease-entrance) backwards;
+}
+.catalogue-table tbody tr:nth-child(1) { animation-delay: 0ms; }
+.catalogue-table tbody tr:nth-child(2) { animation-delay: 30ms; }
+.catalogue-table tbody tr:nth-child(3) { animation-delay: 60ms; }
+.catalogue-table tbody tr:nth-child(4) { animation-delay: 90ms; }
+.catalogue-table tbody tr:nth-child(5) { animation-delay: 120ms; }
+.catalogue-table tbody tr:nth-child(6) { animation-delay: 150ms; }
+.catalogue-table tbody tr:nth-child(7) { animation-delay: 180ms; }
+.catalogue-table tbody tr:nth-child(8) { animation-delay: 210ms; }
+.catalogue-table tbody tr:nth-child(9) { animation-delay: 240ms; }
+.catalogue-table tbody tr:nth-child(10) { animation-delay: 270ms; }
+.catalogue-table tbody tr:nth-child(n+11) { animation-delay: 300ms; }
+
+.bento-book-card {
+  animation: cardSettleEntrance 0.24s var(--ease-entrance) backwards;
+}
+.bento-book-card:nth-child(1) { animation-delay: 0ms; }
+.bento-book-card:nth-child(2) { animation-delay: 30ms; }
+.bento-book-card:nth-child(3) { animation-delay: 60ms; }
+.bento-book-card:nth-child(4) { animation-delay: 90ms; }
+.bento-book-card:nth-child(5) { animation-delay: 120ms; }
+.bento-book-card:nth-child(6) { animation-delay: 150ms; }
+.bento-book-card:nth-child(7) { animation-delay: 180ms; }
+.bento-book-card:nth-child(8) { animation-delay: 210ms; }
+.bento-book-card:nth-child(n+9) { animation-delay: 240ms; }
+
+@keyframes tableRowStagger {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes cardSettleEntrance {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Rule 8: Pulse to confirm success */
+@keyframes confirmPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.06); filter: drop-shadow(0 0 8px var(--emerald)); }
+  100% { transform: scale(1); }
+}
+
+.toast-item,
+.status-badge.status-available {
+  animation: confirmPulse 0.32s var(--ease-entrance);
+}
+
+/* Rule 2: Dropdowns at 150-250ms & Rule 10, 11, 12: Start popovers at 0.95, enter/exit from trigger */
+.vertix-select:focus,
+.saved-filters-dropdown {
+  transform-origin: top center;
+  animation: popoverEnter var(--dur-dropdown) var(--ease-entrance);
+}
+
+@keyframes popoverEnter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Rule 18: Crossfade icons + subtle blur */
+.theme-toggle-orb svg,
+.sort-arrow-icon,
+.lang-badge svg {
+  transition: opacity 0.18s var(--ease-standard),
+              transform 0.18s var(--ease-entrance),
+              filter 0.18s var(--ease-standard);
+}
+
+/* Rule 19: Rubber band past bounds */
+.scroll-region,
+.catalogue-table-wrap,
+.bento-grid {
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Interactive Table Header Sort Button & Arrow Chip */
+.table-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: var(--radius-sm);
+  transition: all 0.16s var(--ease-entrance);
+  user-select: none;
+}
+
+.table-sort-btn:hover {
+  color: var(--brand-accent);
+  background: var(--brand-soft);
+}
+
+.sort-arrow-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  transition: all 0.16s var(--ease-entrance);
+  color: var(--text-muted);
+  opacity: 0.45;
+  background: transparent;
+}
+
+.table-sort-btn:hover .sort-arrow-chip {
+  opacity: 0.85;
+  color: var(--brand-accent);
+  background: var(--brand-soft);
+}
+
+.table-sort-btn.active {
+  color: var(--brand-accent);
+}
+
+.table-sort-btn.active .sort-arrow-chip {
+  opacity: 1;
+  background: var(--brand-accent);
+  color: #ffffff;
+  transform: scale(1.08);
+}
+
+/* Compact A4 Label Studio Previews (Auto-Fit & Zero Horizontal Overflow) */
+.label-barcode-preview {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.label-barcode-preview svg {
+  max-width: 100% !important;
+  height: auto !important;
+  display: block;
+}
+

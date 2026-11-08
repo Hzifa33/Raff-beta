@@ -60,6 +60,7 @@ export interface FilterOptions {
   publisherFilter: string;
   shelfFilter: string;
   sortBy: string;
+  sortDirection?: 'asc' | 'desc';
 }
 
 export function filterAndSortIndexedBooks(
@@ -141,16 +142,39 @@ export function filterAndSortIndexedBooks(
     matched.push(item);
   }
 
-  // Fast sorting
+  // Fast multi-dimensional sorting with direction (Ascending / Descending)
+  const dir = options.sortDirection === 'desc' ? -1 : 1;
   matched.sort((a, b) => {
     const b1 = a.book;
     const b2 = b.book;
-    if (sortBy === 'title') return a.normTitle.localeCompare(b.normTitle, 'ar');
-    if (sortBy === 'author') return a.normAuthor.localeCompare(b.normAuthor, 'ar');
-    if (sortBy === 'reference') return a.normRef.localeCompare(b.normRef, 'en');
-    if (sortBy === 'year') return (b2.publishYear || '').localeCompare(b1.publishYear || '');
-    if (sortBy === 'price') return (b2.price || 0) - (b1.price || 0);
-    return (b2.createdAt || '').localeCompare(b1.createdAt || '');
+    let cmp = 0;
+
+    if (sortBy === 'title') {
+      cmp = a.normTitle.localeCompare(b.normTitle, 'ar');
+    } else if (sortBy === 'author') {
+      cmp = a.normAuthor.localeCompare(b.normAuthor, 'ar');
+    } else if (sortBy === 'category') {
+      cmp = a.normCategory.localeCompare(b.normCategory, 'ar');
+    } else if (sortBy === 'publisher') {
+      cmp = a.normPublisher.localeCompare(b.normPublisher, 'ar');
+    } else if (sortBy === 'shelf') {
+      cmp = a.normShelf.localeCompare(b.normShelf, 'ar');
+    } else if (sortBy === 'reference') {
+      cmp = a.normRef.localeCompare(b.normRef, 'en');
+    } else if (sortBy === 'year') {
+      cmp = (b1.publishYear || '').localeCompare(b2.publishYear || '');
+    } else if (sortBy === 'price') {
+      cmp = (b1.price || 0) - (b2.price || 0);
+    } else if (sortBy === 'copies') {
+      cmp = (b1.copiesTotal || 1) - (b2.copiesTotal || 1);
+    } else if (sortBy === 'status') {
+      cmp = a.avail.state.localeCompare(b.avail.state);
+    } else {
+      // Default newest
+      return (b2.createdAt || '').localeCompare(b1.createdAt || '');
+    }
+
+    return cmp * dir;
   });
 
   const out: Book[] = new Array(matched.length);

@@ -105,7 +105,6 @@ runTest('4. Serene Warm Alabaster, Roasted Espresso & Champagne Gold Palette + 1
 runTest('5. Complete v3 Settings Parity, Real Logo, Labeled Sidebar & Bilingual Translations', () => {
   const appTsx = fs.readFileSync(path.join(ROOT, 'src', 'app', 'App.tsx'), 'utf8');
   assert.ok(appTsx.includes('logo-256.png'), 'Uses real RAFF logo image instead of text character');
-  assert.ok(appTsx.includes("openSettingsTab('security'"), 'Sidebar Security button opens Security tab directly');
   assert.ok(appTsx.includes('windowMinimize'), 'Custom window minimize control wired');
   assert.ok(appTsx.includes('windowToggleMaximize'), 'Custom window maximize control wired');
   assert.ok(appTsx.includes('windowClose'), 'Custom window close control wired');

@@ -22,6 +22,7 @@ import { playSound } from './lib/sound';
 import { cleanReferenceText } from './lib/domain';
 import { isAdminState } from './store/useRaffStore';
 import {
+  openExternalUrl,
   windowClose,
   windowMinimize,
   windowStartDragging,
@@ -495,51 +496,6 @@ export function App() {
 
           {/* Bottom Sidebar Utility Dock */}
           <div className="sidebar-footer-dock">
-            {isAdmin && (
-              <>
-                <button
-                  className="sidebar-nav-item"
-                  onClick={runIntegrityCheck}
-                  title={t.integrityCheckTitle}
-                >
-                  <div className="sidebar-nav-item-main">
-                    <Icon.Shield />
-                    {sidebarExpanded && <span>{t.integrityCheckTitle}</span>}
-                  </div>
-                </button>
-
-                <button
-                  className={`sidebar-nav-item ${
-                    effectiveTab === 'settings' && settingsTab === 'security' ? 'active' : ''
-                  }`}
-                  onClick={() => openSettingsTab('security', !auth?.enabled)}
-                  title={t.securityAndPermissions}
-                >
-                  <div className="sidebar-nav-item-main">
-                    <Icon.Lock />
-                    {sidebarExpanded && <span>{t.securityAndPermissions}</span>}
-                  </div>
-                  {sidebarExpanded && (
-                    <span
-                      className="sidebar-badge"
-                      style={{
-                        background: auth?.enabled ? 'var(--emerald-bg)' : 'var(--amber-bg)',
-                        color: auth?.enabled ? 'var(--emerald)' : 'var(--amber)',
-                      }}
-                    >
-                      {auth?.enabled
-                        ? lang === 'ar'
-                          ? 'محمي'
-                          : 'ON'
-                        : lang === 'ar'
-                        ? 'مفتوح'
-                        : 'OFF'}
-                    </span>
-                  )}
-                </button>
-              </>
-            )}
-
             <button
               className="sidebar-nav-item"
               onClick={toggleSidebar}
@@ -553,22 +509,28 @@ export function App() {
               </div>
             </button>
 
-            {/* Developer Credit Link (Hzifa33) */}
+            {/* Developer Credit Link (Hzifa33) with v3 Developer Logo */}
             <a
               href="https://Hzifa33.github.io"
               target="_blank"
               rel="noopener noreferrer"
               className="dev-credit-badge"
               title={lang === 'ar' ? 'تطوير Hzifa33 — فتح الموقع' : 'Developed by Hzifa33'}
+              onClick={(e) => {
+                e.preventDefault();
+                openExternalUrl('https://Hzifa33.github.io');
+              }}
             >
-              <span className="dev-credit-dot" />
-              {sidebarExpanded ? (
+              <img
+                src="./assets/dev-logo.svg"
+                alt="Hzifa33"
+                className="dev-credit-avatar-img"
+              />
+              {sidebarExpanded && (
                 <span className="dev-credit-text">
                   <small>{lang === 'ar' ? 'تطوير' : 'Dev'}</small>
                   <b>Hzifa33</b>
                 </span>
-              ) : (
-                <b style={{ fontSize: 10 }}>H33</b>
               )}
             </a>
           </div>

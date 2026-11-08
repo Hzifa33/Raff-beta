@@ -3,6 +3,7 @@ import { SettingsSubTab, useRaffStore } from '../store/useRaffStore';
 import { computeBookAvailability } from '../lib/domain';
 import { Icon } from '../components/Icons';
 import { playSound } from '../lib/sound';
+import { openExternalUrl } from '../lib/ipc';
 
 type DimensionKey =
   | 'category'
@@ -1752,9 +1753,17 @@ export function SettingsView() {
                           rel="noopener noreferrer"
                           className="dev-credit-inline"
                           title={isAr ? 'تطوير Hzifa33' : 'Developed by Hzifa33'}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            openExternalUrl('https://Hzifa33.github.io');
+                          }}
                         >
-                          <span className="dev-credit-dot" />
-                          <span>{isAr ? 'تطوير المهندس' : 'Developed by'}: <b>Hzifa33</b> (GitHub: Hzifa33)</span>
+                          <img
+                            src="./assets/dev-logo.svg"
+                            alt="Hzifa33"
+                            style={{ width: 14, height: 14, borderRadius: 3 }}
+                          />
+                          <span>{isAr ? 'تطوير' : 'Developed by'}: <b>Hzifa33</b> (GitHub: Hzifa33)</span>
                         </a>
                       </div>
                     </div>

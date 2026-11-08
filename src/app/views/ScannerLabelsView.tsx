@@ -183,7 +183,7 @@ export function ScannerLabelsView() {
           flex: 1,
           minHeight: 0,
           display: 'grid',
-          gridTemplateColumns: '360px 1fr',
+          gridTemplateColumns: '320px 1fr',
           gap: 12,
           overflow: 'hidden',
         }}
@@ -380,15 +380,18 @@ export function ScannerLabelsView() {
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: `repeat(${settings.labelColumns || 4}, 1fr)`,
-                  gap: 10,
+                  gridTemplateColumns: `repeat(${settings.labelColumns || 4}, minmax(0, 1fr))`,
+                  gap: 8,
+                  width: '100%',
                 }}
               >
                 {stream.visibleItems.map((b) => {
                   const isSelected = selectedSet.has(b.id);
                   const svg = renderBarcodeSVG(b.referenceNumber, {
-                    height: 36,
-                    moduleWidth: 1.45,
+                    height: 20,
+                    moduleWidth: 0.9,
+                    margin: 2,
+                    textSize: 8.5,
                     color: '#1c1613',
                     background: '#ffffff',
                   });
@@ -399,8 +402,11 @@ export function ScannerLabelsView() {
                       style={{
                         background: '#ffffff',
                         color: '#1c1613',
-                        borderRadius: 10,
-                        padding: 10,
+                        borderRadius: 8,
+                        padding: '6px 5px',
+                        minWidth: 0,
+                        overflow: 'hidden',
+                        boxSizing: 'border-box',
                         border: isSelected
                           ? '2px solid var(--brand-accent)'
                           : '1px solid rgba(0,0,0,0.12)',
@@ -414,41 +420,47 @@ export function ScannerLabelsView() {
                     >
                       <div
                         style={{
-                          fontSize: 9.5,
+                          fontSize: 8.5,
                           fontWeight: 700,
                           color: '#6b5e53',
-                          marginBottom: 2,
+                          marginBottom: 1,
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
                         }}
                       >
                         {settings.institutionName || (isAr ? 'مكتبة رَفّ' : 'RAFF Library')}
                       </div>
                       <div
                         style={{
-                          fontSize: 12,
+                          fontSize: 10,
                           fontWeight: 700,
+                          lineHeight: 1.2,
                           whiteSpace: 'nowrap',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
-                          marginBottom: 4,
+                          marginBottom: 2,
                         }}
                       >
                         {b.title}
                       </div>
                       <div
                         style={{
-                          fontSize: 10,
+                          fontSize: 8.5,
                           color: '#574c43',
-                          marginBottom: 6,
+                          marginBottom: 3,
                           display: 'flex',
                           justifyContent: 'center',
-                          gap: 6,
+                          gap: 4,
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
                         }}
                       >
                         {settings.labelShowShelf && b.shelf && <span>{b.shelf}</span>}
                         {settings.labelShowPrice && b.price && <span>{b.price} ر.س</span>}
                       </div>
                       <div
-                        style={{ display: 'flex', justifyContent: 'center', overflow: 'hidden' }}
+                        className="label-barcode-preview"
                         dangerouslySetInnerHTML={{ __html: svg }}
                       />
                     </div>

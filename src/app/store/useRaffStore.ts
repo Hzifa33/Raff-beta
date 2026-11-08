@@ -67,6 +67,7 @@ interface RaffStore {
   publisherFilter: string;
   shelfFilter: string;
   sortBy: string;
+  sortDirection: 'asc' | 'desc';
   selectedBookIds: string[];
 
   // Modals & Drawers
@@ -97,6 +98,8 @@ interface RaffStore {
   setPublisherFilter: (p: string) => void;
   setShelfFilter: (sh: string) => void;
   setSortBy: (s: string) => void;
+  setSortDirection: (dir: 'asc' | 'desc') => void;
+  toggleSort: (field: string) => void;
   resetSearchFilters: () => void;
   setLoanFilter: (f: string) => Promise<void>;
   toggleSelectBook: (id: string) => void;
@@ -225,6 +228,7 @@ export const useRaffStore = create<RaffStore>((set, get) => ({
   publisherFilter: 'all',
   shelfFilter: 'all',
   sortBy: 'newest',
+  sortDirection: 'asc',
   selectedBookIds: [],
 
   inspectedBook: null,
@@ -408,6 +412,16 @@ export const useRaffStore = create<RaffStore>((set, get) => ({
   setPublisherFilter: (publisherFilter) => set({ publisherFilter }),
   setShelfFilter: (shelfFilter) => set({ shelfFilter }),
   setSortBy: (sortBy) => set({ sortBy }),
+  setSortDirection: (sortDirection) => set({ sortDirection }),
+  toggleSort: (field) => {
+    const current = get().sortBy;
+    const curDir = get().sortDirection || 'asc';
+    if (current === field) {
+      set({ sortDirection: curDir === 'asc' ? 'desc' : 'asc' });
+    } else {
+      set({ sortBy: field, sortDirection: 'asc' });
+    }
+  },
   resetSearchFilters: () =>
     set({
       searchQuery: '',
@@ -417,6 +431,7 @@ export const useRaffStore = create<RaffStore>((set, get) => ({
       publisherFilter: 'all',
       shelfFilter: 'all',
       sortBy: 'newest',
+      sortDirection: 'asc',
     }),
 
   setLoanFilter: async (loanFilter) => {

@@ -1337,3 +1337,18 @@ export async function windowStartDragging(): Promise<void> {
     // ignore
   }
 }
+
+export async function openExternalUrl(url: string): Promise<void> {
+  if (!url) return;
+  try {
+    if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
+      await invokeRaff('open_external_url', { url });
+      return;
+    }
+  } catch (err) {
+    console.warn('Tauri open external URL fallback', err);
+  }
+  if (typeof window !== 'undefined') {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+}

@@ -17,6 +17,7 @@ function useFilteredBooks(): Book[] {
   const publisherFilter = useRaffStore((s) => s.publisherFilter);
   const shelfFilter = useRaffStore((s) => s.shelfFilter);
   const sortBy = useRaffStore((s) => s.sortBy);
+  const sortDirection = useRaffStore((s) => s.sortDirection);
 
   // Pre-indexed search metadata built once per books change
   const indexed = useMemo(() => buildSearchIndex(books), [books]);
@@ -30,6 +31,7 @@ function useFilteredBooks(): Book[] {
       publisherFilter,
       shelfFilter,
       sortBy,
+      sortDirection,
     });
   }, [
     indexed,
@@ -40,6 +42,7 @@ function useFilteredBooks(): Book[] {
     publisherFilter,
     shelfFilter,
     sortBy,
+    sortDirection,
   ]);
 }
 
@@ -55,6 +58,7 @@ export function FilterBar({ totalCount, hideSearchInput = false }: { totalCount:
     publisherFilter,
     shelfFilter,
     sortBy,
+    sortDirection,
     setSearchQuery,
     setSearchField,
     setStatusFilter,
@@ -62,6 +66,7 @@ export function FilterBar({ totalCount, hideSearchInput = false }: { totalCount:
     setPublisherFilter,
     setShelfFilter,
     setSortBy,
+    setSortDirection,
     resetSearchFilters,
     saveCurrentFilter,
     deleteSavedFilter,
@@ -159,18 +164,45 @@ export function FilterBar({ totalCount, hideSearchInput = false }: { totalCount:
           ))}
         </select>
 
-        <select
-          className="vertix-select"
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value)}
-        >
-          <option value="newest">{t.sortNewest}</option>
-          <option value="title">{t.sortTitle}</option>
-          <option value="author">{t.sortAuthor}</option>
-          <option value="reference">{t.sortReference}</option>
-          <option value="year">{t.sortYear}</option>
-          <option value="price">{t.sortPrice}</option>
-        </select>
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          <select
+            className="vertix-select"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+          >
+            <option value="newest">{t.sortNewest}</option>
+            <option value="title">{t.sortTitle}</option>
+            <option value="author">{t.sortAuthor}</option>
+            <option value="category">{t.sortCategory}</option>
+            <option value="publisher">{t.sortPublisher}</option>
+            <option value="shelf">{t.sortShelf}</option>
+            <option value="copies">{t.sortCopies}</option>
+            <option value="reference">{t.sortReference}</option>
+            <option value="year">{t.sortYear}</option>
+            <option value="price">{t.sortPrice}</option>
+          </select>
+          <button
+            type="button"
+            className="btn btn-ghost sort-dir-btn"
+            onClick={() => setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')}
+            title={sortDirection === 'asc' ? t.sortAsc : t.sortDesc}
+            style={{
+              height: 32,
+              width: 32,
+              padding: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 14,
+              fontWeight: 700,
+              color: 'var(--brand-accent)',
+            }}
+          >
+            <span className="sort-arrow-icon">
+              {sortDirection === 'asc' ? '↑' : '↓'}
+            </span>
+          </button>
+        </div>
 
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           {hasActiveFilters && (
@@ -589,12 +621,46 @@ export function DiscoverView() {
   );
 }
 
+function SortableHeader({
+  field,
+  label,
+  currentSort,
+  currentDir,
+  onToggle,
+}: {
+  field: string;
+  label: string;
+  currentSort: string;
+  currentDir: 'asc' | 'desc';
+  onToggle: (f: string) => void;
+}) {
+  const isActive = currentSort === field;
+  return (
+    <th>
+      <button
+        type="button"
+        className={`table-sort-btn ${isActive ? 'active' : ''}`}
+        onClick={() => onToggle(field)}
+        title={`${label} (${isActive ? (currentDir === 'asc' ? 'من الأعلى للأسفل ↑' : 'من الأسفل للأعلى ↓') : 'اضغط للفرز'})`}
+      >
+        <span>{label}</span>
+        <span className={`sort-arrow-chip ${isActive ? 'active' : ''}`}>
+          {isActive ? (currentDir === 'asc' ? '↑' : '↓') : '⇅'}
+        </span>
+      </button>
+    </th>
+  );
+}
+
 export function CatalogueView() {
   const {
     lang,
     books,
     auth,
     selectedBookIds,
+    sortBy,
+    sortDirection,
+    toggleSort,
     toggleSelectBook,
     selectAllBooks,
     clearSelection,
@@ -688,14 +754,62 @@ export function CatalogueView() {
                     />
                   </th>
                 )}
-                <th>{t.fieldReference}</th>
-                <th>{t.fieldTitle}</th>
-                <th>{t.fieldAuthor}</th>
-                <th>{t.fieldCategory}</th>
-                <th>{t.fieldPublisher}</th>
-                <th>{t.shelfLabel}</th>
-                <th>{t.copiesLabel}</th>
-                <th>{lang === 'ar' ? 'الحالة' : 'Status'}</th>
+                <SortableHeader
+                  field="reference"
+                  label={t.fieldReference}
+                  currentSort={sortBy}
+                  currentDir={sortDirection}
+                  onToggle={toggleSort}
+                />
+                <SortableHeader
+                  field="title"
+                  label={t.fieldTitle}
+                  currentSort={sortBy}
+                  currentDir={sortDirection}
+                  onToggle={toggleSort}
+                />
+                <SortableHeader
+                  field="author"
+                  label={t.fieldAuthor}
+                  currentSort={sortBy}
+                  currentDir={sortDirection}
+                  onToggle={toggleSort}
+                />
+                <SortableHeader
+                  field="category"
+                  label={t.fieldCategory}
+                  currentSort={sortBy}
+                  currentDir={sortDirection}
+                  onToggle={toggleSort}
+                />
+                <SortableHeader
+                  field="publisher"
+                  label={t.fieldPublisher}
+                  currentSort={sortBy}
+                  currentDir={sortDirection}
+                  onToggle={toggleSort}
+                />
+                <SortableHeader
+                  field="shelf"
+                  label={t.shelfLabel}
+                  currentSort={sortBy}
+                  currentDir={sortDirection}
+                  onToggle={toggleSort}
+                />
+                <SortableHeader
+                  field="copies"
+                  label={t.copiesLabel}
+                  currentSort={sortBy}
+                  currentDir={sortDirection}
+                  onToggle={toggleSort}
+                />
+                <SortableHeader
+                  field="status"
+                  label={lang === 'ar' ? 'الحالة' : 'Status'}
+                  currentSort={sortBy}
+                  currentDir={sortDirection}
+                  onToggle={toggleSort}
+                />
                 <th>{lang === 'ar' ? 'إجراءات' : 'Actions'}</th>
               </tr>
             </thead>

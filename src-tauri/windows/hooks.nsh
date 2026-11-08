@@ -13,8 +13,6 @@
 
 !define MUI_FINISHPAGE_TITLE "اكتمل تثبيت رَفّ 4.0.0 بنجاح"
 !define MUI_FINISHPAGE_TEXT "تم تثبيت برنامج رَفّ 4.0.0 بنجاح على جهازك وهو جاهز للاستخدام الآن.$\r$\n$\r$\nتطوير: Hzifa33"
-!define MUI_FINISHPAGE_RUN "$INSTDIR\رَفّ.exe"
-!define MUI_FINISHPAGE_RUN_TEXT "تشغيل برنامج رَفّ 4.0.0 الآن"
 
 !define MUI_UNWELCOMEPAGE_TITLE "معالج إلغاء تثبيت رَفّ 4.0.0"
 !define MUI_UNWELCOMEPAGE_TEXT "سيقوم هذا المعالج بحذف ملفات برنامج رَفّ 4.0.0 من جهازك.$\r$\n$\r$\nملاحظة هامة: لن يتم حذف قواعد بياناتك أو نسخك الاحتياطية حفاظاً على سلامة بيانات مكتبتك دائماً."

@@ -30,6 +30,7 @@
   },
   "bundle": {
     "active": true,
+    "copyright": "رَفّ 4.0.0 — تطوير: Hzifa33",
     "targets": "all",
     "icon": [
       "icons/32x32.png",

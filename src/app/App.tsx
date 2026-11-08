@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo, useTransition } from 'react';
 import { useRaffStore } from './store/useRaffStore';
 import { translations } from './i18n/translations';
 import { Icon } from './components/Icons';
@@ -205,51 +205,59 @@ export function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [settings.scannerGapMs, lang]);
 
-  const activeLoansCount = loans.filter((l) => l.active).length;
+  const [, startTabTransition] = useTransition();
+  const navigateTab = (target: NavTab) => {
+    startTabTransition(() => {
+      setActiveTab(target);
+    });
+  };
+
+  const activeLoansCount = useMemo(() => loans.filter((l) => l.active).length, [loans]);
   const overdueCount = stats?.overdueLoans || 0;
 
-  const navItems: {
-    id: NavTab;
-    label: string;
-    icon: React.ReactNode;
-    adminOnly?: boolean;
-    badge?: string | number | null;
-    badgeAlert?: boolean;
-  }[] = [
-    { id: 'overview', label: t.navOverview, icon: <Icon.Grid />, adminOnly: true },
-    {
-      id: 'discover',
-      label: t.navDiscover,
-      icon: <Icon.Search />,
-      badge: books.length > 0 ? books.length : null,
-    },
-    {
-      id: 'catalogue',
-      label: t.navCatalogue,
-      icon: <Icon.Book />,
-      badge: books.length > 0 ? books.length : null,
-    },
-    { id: 'add', label: t.navAdd, icon: <Icon.Plus />, adminOnly: true },
-    {
-      id: 'loans',
-      label: t.navLoans,
-      icon: <Icon.Users />,
-      adminOnly: true,
-      badge: overdueCount > 0 ? overdueCount : activeLoansCount > 0 ? activeLoansCount : null,
-      badgeAlert: overdueCount > 0,
-    },
-    { id: 'scanner', label: t.navScanner, icon: <Icon.Barcode />, adminOnly: true },
-    { id: 'analytics', label: t.navAnalytics, icon: <Icon.Chart />, adminOnly: true },
-    {
-      id: 'settings',
-      label: t.navSettings,
-      icon: <Icon.Settings />,
-      adminOnly: true,
-      badge: trash.length > 0 ? trash.length : null,
-    },
-  ];
-
-  const visibleTabs = navItems.filter((item) => !item.adminOnly || isAdmin);
+  const visibleTabs = useMemo(() => {
+    const navItems: {
+      id: NavTab;
+      label: string;
+      icon: React.ReactNode;
+      adminOnly?: boolean;
+      badge?: string | number | null;
+      badgeAlert?: boolean;
+    }[] = [
+      { id: 'overview', label: t.navOverview, icon: <Icon.Grid />, adminOnly: true },
+      {
+        id: 'discover',
+        label: t.navDiscover,
+        icon: <Icon.Search />,
+        badge: books.length > 0 ? books.length : null,
+      },
+      {
+        id: 'catalogue',
+        label: t.navCatalogue,
+        icon: <Icon.Book />,
+        badge: books.length > 0 ? books.length : null,
+      },
+      { id: 'add', label: t.navAdd, icon: <Icon.Plus />, adminOnly: true },
+      {
+        id: 'loans',
+        label: t.navLoans,
+        icon: <Icon.Users />,
+        adminOnly: true,
+        badge: overdueCount > 0 ? overdueCount : activeLoansCount > 0 ? activeLoansCount : null,
+        badgeAlert: overdueCount > 0,
+      },
+      { id: 'scanner', label: t.navScanner, icon: <Icon.Barcode />, adminOnly: true },
+      { id: 'analytics', label: t.navAnalytics, icon: <Icon.Chart />, adminOnly: true },
+      {
+        id: 'settings',
+        label: t.navSettings,
+        icon: <Icon.Settings />,
+        adminOnly: true,
+        badge: trash.length > 0 ? trash.length : null,
+      },
+    ];
+    return navItems.filter((item) => !item.adminOnly || isAdmin);
+  }, [t, books.length, activeLoansCount, overdueCount, trash.length, isAdmin]);
   const effectiveTab: NavTab =
     !isAdmin && !['discover', 'catalogue'].includes(activeTab) ? 'discover' : activeTab;
 
@@ -299,7 +307,7 @@ export function App() {
 
           <div
             className="brand-cluster"
-            onClick={() => setActiveTab(isAdmin ? 'overview' : 'discover')}
+            onClick={() => navigateTab(isAdmin ? 'overview' : 'discover')}
             title={t.brandSubtitle}
           >
             <img
@@ -332,7 +340,7 @@ export function App() {
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
                   if (effectiveTab !== 'discover' && effectiveTab !== 'catalogue') {
-                    setActiveTab('discover');
+                    navigateTab('discover');
                   }
                 }}
                 placeholder={t.searchPlaceholder}
@@ -468,7 +476,7 @@ export function App() {
                 <button
                   key={item.id}
                   className={`sidebar-nav-item ${isActive ? 'active' : ''}`}
-                  onClick={() => setActiveTab(item.id)}
+                  onClick={() => navigateTab(item.id)}
                   title={item.label}
                 >
                   <div className="sidebar-nav-item-main">

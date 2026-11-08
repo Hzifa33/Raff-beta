@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useRaffStore } from '../store/useRaffStore';
 import { Icon } from '../components/Icons';
+import { Book } from '../types';
+import { useVirtualStream } from '../lib/useVirtualStream';
 
 export function LoansView() {
   const {
@@ -18,25 +20,41 @@ export function LoansView() {
   const [subTab, setSubTab] = useState<'center' | 'borrowers'>('center');
   const [query, setQuery] = useState('');
 
-  const filteredLoans = loans.filter((l) => {
-    if (!query.trim()) return true;
-    const q = query.toLowerCase();
-    return (
-      l.title.toLowerCase().includes(q) ||
-      l.borrowerName.toLowerCase().includes(q) ||
-      l.referenceNumber.toLowerCase().includes(q) ||
-      (l.contact || '').toLowerCase().includes(q)
-    );
-  });
+  // O(1) Book Lookup Map to eliminate 2.5 million nested search iterations
+  const booksMap = useMemo(() => {
+    const map = new Map<string, Book>();
+    for (let i = 0; i < books.length; i++) {
+      map.set(books[i].id, books[i]);
+    }
+    return map;
+  }, [books]);
 
-  const filteredBorrowers = borrowers.filter((b) => {
-    if (!query.trim()) return true;
+  const filteredLoans = useMemo(() => {
+    if (!query.trim()) return loans;
     const q = query.toLowerCase();
-    return (
-      b.name.toLowerCase().includes(q) ||
-      (b.contact || '').toLowerCase().includes(q)
-    );
-  });
+    return loans.filter((l) => {
+      return (
+        l.title.toLowerCase().includes(q) ||
+        l.borrowerName.toLowerCase().includes(q) ||
+        l.referenceNumber.toLowerCase().includes(q) ||
+        (l.contact || '').toLowerCase().includes(q)
+      );
+    });
+  }, [loans, query]);
+
+  const filteredBorrowers = useMemo(() => {
+    if (!query.trim()) return borrowers;
+    const q = query.toLowerCase();
+    return borrowers.filter((b) => {
+      return (
+        b.name.toLowerCase().includes(q) ||
+        (b.contact || '').toLowerCase().includes(q)
+      );
+    });
+  }, [borrowers, query]);
+
+  const loansStream = useVirtualStream(filteredLoans, { initialCount: 60, step: 50 });
+  const borrowersStream = useVirtualStream(filteredBorrowers, { initialCount: 40, step: 40 });
 
   const filterPills: { id: string; ar: string; en: string }[] = [
     { id: 'open', ar: 'الإعارات النشطة', en: 'Open Loans' },
@@ -185,8 +203,8 @@ export function LoansView() {
                 </tr>
               </thead>
               <tbody>
-                {filteredLoans.map((item) => {
-                  const parentBook = books.find((b) => b.id === item.bookId);
+                {loansStream.visibleItems.map((item) => {
+                  const parentBook = booksMap.get(item.bookId);
                   return (
                     <tr key={item.loanId}>
                       <td>
@@ -250,6 +268,25 @@ export function LoansView() {
                 })}
               </tbody>
             </table>
+            {loansStream.hasMore && (
+              <div
+                ref={loansStream.sentinelRef}
+                style={{ padding: '12px 0', textAlign: 'center' }}
+              >
+                <button
+                  className="btn btn-ghost"
+                  onClick={loansStream.loadMore}
+                  style={{ fontSize: 12, height: 30 }}
+                >
+                  <Icon.Refresh style={{ width: 13, height: 13 }} />
+                  <span>
+                    {isAr
+                      ? `تحميل المزيد (+50) — معروض ${loansStream.showingCount.toLocaleString('en-US')} من ${loansStream.totalCount.toLocaleString('en-US')}`
+                      : `Load More (+50) — showing ${loansStream.showingCount.toLocaleString('en-US')} of ${loansStream.totalCount.toLocaleString('en-US')}`}
+                  </span>
+                </button>
+              </div>
+            )}
           </div>
         )
       ) : filteredBorrowers.length === 0 ? (
@@ -262,7 +299,7 @@ export function LoansView() {
       ) : (
         <div className="scroll-region">
           <div className="discover-grid">
-            {filteredBorrowers.map((prof) => (
+            {borrowersStream.visibleItems.map((prof) => (
               <div key={prof.name} className="book-bento-card" style={{ cursor: 'default' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
@@ -312,6 +349,25 @@ export function LoansView() {
               </div>
             ))}
           </div>
+          {borrowersStream.hasMore && (
+            <div
+              ref={borrowersStream.sentinelRef}
+              style={{ padding: '16px 0', textAlign: 'center' }}
+            >
+              <button
+                className="btn btn-ghost"
+                onClick={borrowersStream.loadMore}
+                style={{ fontSize: 12, height: 32 }}
+              >
+                <Icon.Refresh style={{ width: 14, height: 14 }} />
+                <span>
+                  {isAr
+                    ? `تحميل المزيد (+40) — معروض ${borrowersStream.showingCount.toLocaleString('en-US')} من ${borrowersStream.totalCount.toLocaleString('en-US')}`
+                    : `Load More (+40) — showing ${borrowersStream.showingCount.toLocaleString('en-US')} of ${borrowersStream.totalCount.toLocaleString('en-US')}`}
+                </span>
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

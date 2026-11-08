@@ -282,9 +282,12 @@ runTest('8. Smart Tokenized Search, Acoustic Feedback, Universal Print & Desktop
   const printSrc = fs.readFileSync(printPath, 'utf-8');
   assert.ok(printSrc.includes('iframe'), 'Uses hidden iframe for reliable printing');
 
-  // 3. Verify Tokenized Multi-word Search
-  const discoverSrc = fs.readFileSync(path.join(ROOT, 'src/app/views/DiscoverCatalogueView.tsx'), 'utf-8');
-  assert.ok(discoverSrc.includes('tokens.every'), 'Implements tokenized multi-word search');
+  // 3. Verify Tokenized Multi-word Search Indexing
+  const searchIndexSrc = fs.readFileSync(path.join(ROOT, 'src/app/lib/searchIndex.ts'), 'utf-8');
+  assert.ok(
+    searchIndexSrc.includes('tokens') && searchIndexSrc.includes('fullBlob.includes'),
+    'Implements tokenized multi-word search index'
+  );
 
   // 4. Verify Desktop Hotkeys in App.tsx
   const appSrc = fs.readFileSync(path.join(ROOT, 'src/app/App.tsx'), 'utf-8');

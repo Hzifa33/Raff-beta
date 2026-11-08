@@ -23,6 +23,7 @@
     "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml && cargo build --manifest-path src-tauri/Cargo.toml",
     "test:v4": "node tests/v4-suite.test.js",
     "bench": "cargo test --manifest-path src-tauri/Cargo.toml --release bench_10k_books_and_5k_loans_sqlite_performance -- --nocapture",
+    "generate:5000": "node scripts/generate-5000-books.js",
     "test": "npm run build && npm run test:rust && npm run test:v4"
   },
   "dependencies": {

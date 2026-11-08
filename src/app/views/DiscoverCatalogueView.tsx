@@ -5,80 +5,34 @@ import { computeBookAvailability, normalizeArabic } from '../lib/domain';
 import { Book } from '../types';
 import { Icon } from '../components/Icons';
 import { isAdminState } from '../store/useRaffStore';
+import { useVirtualStream } from '../lib/useVirtualStream';
+import { buildSearchIndex, filterAndSortIndexedBooks } from '../lib/searchIndex';
 
 function useFilteredBooks(): Book[] {
-  const {
-    books,
-    searchQuery,
-    searchField,
-    statusFilter,
-    categoryFilter,
-    publisherFilter,
-    shelfFilter,
-    sortBy,
-  } = useRaffStore();
+  const books = useRaffStore((s) => s.books);
+  const searchQuery = useRaffStore((s) => s.searchQuery);
+  const searchField = useRaffStore((s) => s.searchField);
+  const statusFilter = useRaffStore((s) => s.statusFilter);
+  const categoryFilter = useRaffStore((s) => s.categoryFilter);
+  const publisherFilter = useRaffStore((s) => s.publisherFilter);
+  const shelfFilter = useRaffStore((s) => s.shelfFilter);
+  const sortBy = useRaffStore((s) => s.sortBy);
+
+  // Pre-indexed search metadata built once per books change
+  const indexed = useMemo(() => buildSearchIndex(books), [books]);
 
   return useMemo(() => {
-    const q = normalizeArabic(searchQuery);
-    const list = books.filter((b) => {
-      if (b.archivedAt) return false;
-      const avail = computeBookAvailability(b);
-      if (statusFilter !== 'all' && avail.state !== statusFilter) return false;
-      if (categoryFilter !== 'all' && b.category !== categoryFilter) return false;
-      if (publisherFilter !== 'all' && b.publisher !== publisherFilter) return false;
-      if (shelfFilter !== 'all' && b.shelf !== shelfFilter) return false;
-
-      if (!q) return true;
-      const matchField = (val: string) => normalizeArabic(val).includes(q);
-      if (searchField === 'title') return matchField(b.title);
-      if (searchField === 'author') return matchField(b.author);
-      if (searchField === 'publisher') return matchField(b.publisher);
-      if (searchField === 'category') return matchField(b.category);
-      if (searchField === 'reference') return matchField(b.referenceNumber);
-      if (searchField === 'shelf') return matchField(b.shelf);
-      if (searchField === 'series') return matchField(b.series);
-      if (searchField === 'keywords') return (b.keywords || []).some(matchField);
-
-      // Smart Tokenized Multi-word Match across all fields
-      const tokens = q.split(/\s+/).filter(Boolean);
-      if (tokens.length > 1) {
-        return tokens.every((token) => {
-          const matchTok = (val: string) => normalizeArabic(val).includes(token);
-          return (
-            matchTok(b.title) ||
-            matchTok(b.author) ||
-            matchTok(b.publisher) ||
-            matchTok(b.category) ||
-            matchTok(b.referenceNumber) ||
-            matchTok(b.shelf) ||
-            matchTok(b.series) ||
-            (b.keywords || []).some(matchTok)
-          );
-        });
-      }
-
-      return (
-        matchField(b.title) ||
-        matchField(b.author) ||
-        matchField(b.publisher) ||
-        matchField(b.category) ||
-        matchField(b.referenceNumber) ||
-        matchField(b.shelf) ||
-        matchField(b.series) ||
-        (b.keywords || []).some(matchField)
-      );
-    });
-
-    return [...list].sort((a, b) => {
-      if (sortBy === 'title') return a.title.localeCompare(b.title, 'ar');
-      if (sortBy === 'author') return a.author.localeCompare(b.author, 'ar');
-      if (sortBy === 'reference') return a.referenceNumber.localeCompare(b.referenceNumber, 'en');
-      if (sortBy === 'year') return (b.publishYear || '').localeCompare(a.publishYear || '');
-      if (sortBy === 'price') return (b.price || 0) - (a.price || 0);
-      return (b.createdAt || '').localeCompare(a.createdAt || '');
+    return filterAndSortIndexedBooks(indexed, {
+      searchQuery,
+      searchField,
+      statusFilter,
+      categoryFilter,
+      publisherFilter,
+      shelfFilter,
+      sortBy,
     });
   }, [
-    books,
+    indexed,
     searchQuery,
     searchField,
     statusFilter,
@@ -353,6 +307,7 @@ export function DiscoverView() {
   const t = translations[lang];
   const filtered = useFilteredBooks();
   const isAdmin = isAdminState(auth);
+  const stream = useVirtualStream(filtered, { initialCount: 60, step: 48 });
 
   return (
     <div className="stage-view">
@@ -497,109 +452,137 @@ export function DiscoverView() {
             </button>
           </div>
         ) : (
-          <div className="discover-grid">
-            {filtered.map((book) => {
-              const avail = computeBookAvailability(book);
-              return (
-                <div
-                  key={book.id}
-                  className="book-bento-card"
-                  onClick={() => setInspectedBook(book)}
-                >
-                  <div>
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        gap: 8,
-                        marginBottom: 6,
-                      }}
-                    >
-                      <span className="ref-chip">{book.referenceNumber}</span>
-                      <span
-                        className={`status-badge ${
-                          avail.state === 'available'
-                            ? 'status-available'
-                            : avail.state === 'partial'
-                            ? 'status-partial'
-                            : 'status-borrowed'
-                        }`}
+          <>
+            <div className="discover-grid">
+              {stream.visibleItems.map((book) => {
+                const avail = computeBookAvailability(book);
+                return (
+                  <div
+                    key={book.id}
+                    className="book-bento-card"
+                    onClick={() => setInspectedBook(book)}
+                  >
+                    <div>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          gap: 8,
+                          marginBottom: 6,
+                        }}
                       >
-                        {avail.state === 'available'
-                          ? t.statusAvailable
-                          : avail.state === 'partial'
-                          ? t.statusPartial
-                          : t.statusBorrowed}
-                      </span>
-                    </div>
-
-                    <div className="book-title">{book.title}</div>
-                    <div className="book-author">
-                      {book.author || (lang === 'ar' ? 'بدون مؤلف' : 'Unknown Author')}
-                      {book.publisher ? ` · ${book.publisher}` : ''}
-                    </div>
-                  </div>
-
-                  <div className="book-meta-strip">
-                    {book.category && <span className="meta-pill">{book.category}</span>}
-                    {book.shelf && (
-                      <span className="meta-pill">
-                        {t.shelfLabel}: {book.shelf}
-                      </span>
-                    )}
-                    <span className="meta-pill">
-                      {t.copiesLabel}: {avail.availableCopies}/{avail.copiesTotal}
-                    </span>
-                    {book.volumes > 1 && (
-                      <span className="meta-pill">
-                        {t.volumesLabel}: {book.volumes}
-                      </span>
-                    )}
-                  </div>
-
-                  {isAdmin && (
-                    <div
-                      style={{
-                        display: 'flex',
-                        gap: 6,
-                        paddingTop: 6,
-                        borderTop: '1px solid var(--border-subtle)',
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {avail.availableCopies > 0 && (
-                        <button
-                          className="btn btn-primary"
-                          style={{ flex: 1, height: 28, fontSize: 11.5 }}
-                          onClick={() => setBorrowingBook(book)}
+                        <span className="ref-chip">{book.referenceNumber}</span>
+                        <span
+                          className={`status-badge ${
+                            avail.state === 'available'
+                              ? 'status-available'
+                              : avail.state === 'partial'
+                              ? 'status-partial'
+                              : 'status-borrowed'
+                          }`}
                         >
-                          {t.borrowAction}
-                        </button>
+                          {avail.state === 'available'
+                            ? t.statusAvailable
+                            : avail.state === 'partial'
+                            ? t.statusPartial
+                            : t.statusBorrowed}
+                        </span>
+                      </div>
+
+                      <div className="book-title">{book.title}</div>
+                      <div className="book-author">
+                        {book.author || (lang === 'ar' ? 'بدون مؤلف' : 'Unknown Author')}
+                        {book.publisher ? ` · ${book.publisher}` : ''}
+                      </div>
+                    </div>
+
+                    <div className="book-meta-strip">
+                      {book.category && <span className="meta-pill">{book.category}</span>}
+                      {book.shelf && (
+                        <span className="meta-pill">
+                          {t.shelfLabel}: {book.shelf}
+                        </span>
                       )}
-                      {avail.activeLoans.length > 0 && (
+                      <span className="meta-pill">
+                        {t.copiesLabel}: {avail.availableCopies}/{avail.copiesTotal}
+                      </span>
+                      {book.volumes > 1 && (
+                        <span className="meta-pill">
+                          {t.volumesLabel}: {book.volumes}
+                        </span>
+                      )}
+                    </div>
+
+                    {isAdmin && (
+                      <div
+                        style={{
+                          display: 'flex',
+                          gap: 6,
+                          paddingTop: 6,
+                          borderTop: '1px solid var(--border-subtle)',
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {avail.availableCopies > 0 && (
+                          <button
+                            className="btn btn-primary"
+                            style={{ flex: 1, height: 28, fontSize: 11.5 }}
+                            onClick={() => setBorrowingBook(book)}
+                          >
+                            {t.borrowAction}
+                          </button>
+                        )}
+                        {avail.activeLoans.length > 0 && (
+                          <button
+                            className="btn btn-ghost"
+                            style={{ flex: 1, height: 28, fontSize: 11.5 }}
+                            onClick={() => setReturningBook({ book })}
+                          >
+                            {t.returnAction}
+                          </button>
+                        )}
                         <button
                           className="btn btn-ghost"
-                          style={{ flex: 1, height: 28, fontSize: 11.5 }}
-                          onClick={() => setReturningBook({ book })}
+                          style={{ height: 28, padding: '0 8px' }}
+                          onClick={() => setLabelPreviewBook(book)}
+                          title={t.printLabelAction}
                         >
-                          {t.returnAction}
+                          <Icon.Barcode style={{ width: 14, height: 14 }} />
                         </button>
-                      )}
-                      <button
-                        className="btn btn-ghost"
-                        style={{ height: 28, padding: '0 8px' }}
-                        onClick={() => setLabelPreviewBook(book)}
-                        title={t.printLabelAction}
-                      >
-                        <Icon.Barcode style={{ width: 14, height: 14 }} />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {stream.hasMore && (
+              <div
+                ref={stream.sentinelRef}
+                style={{
+                  padding: '16px 0',
+                  textAlign: 'center',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                <button
+                  className="btn btn-ghost"
+                  onClick={stream.loadMore}
+                  style={{ fontSize: 12, height: 32 }}
+                >
+                  <Icon.Refresh style={{ width: 14, height: 14 }} />
+                  <span>
+                    {lang === 'ar'
+                      ? `تحميل المزيد (+48) — معروض ${stream.showingCount.toLocaleString('en-US')} من ${stream.totalCount.toLocaleString('en-US')} عنوان`
+                      : `Load More (+48) — showing ${stream.showingCount.toLocaleString('en-US')} of ${stream.totalCount.toLocaleString('en-US')}`}
+                  </span>
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -627,6 +610,7 @@ export function CatalogueView() {
   const t = translations[lang];
   const filtered = useFilteredBooks();
   const isAdmin = isAdminState(auth);
+  const stream = useVirtualStream(filtered, { initialCount: 80, step: 60 });
 
   const allSelected =
     filtered.length > 0 && filtered.every((b) => selectedBookIds.includes(b.id));
@@ -716,7 +700,7 @@ export function CatalogueView() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((book) => {
+              {stream.visibleItems.map((book) => {
                 const avail = computeBookAvailability(book);
                 const checked = selectedBookIds.includes(book.id);
                 return (
@@ -816,6 +800,32 @@ export function CatalogueView() {
               })}
             </tbody>
           </table>
+
+          {stream.hasMore && (
+            <div
+              ref={stream.sentinelRef}
+              style={{
+                padding: '14px 0',
+                textAlign: 'center',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
+              <button
+                className="btn btn-ghost"
+                onClick={stream.loadMore}
+                style={{ fontSize: 12, height: 32 }}
+              >
+                <Icon.Refresh style={{ width: 14, height: 14 }} />
+                <span>
+                  {lang === 'ar'
+                    ? `تحميل المزيد من الصفوف (+60) — معروض ${stream.showingCount.toLocaleString('en-US')} من ${stream.totalCount.toLocaleString('en-US')}`
+                    : `Load More Rows (+60) — showing ${stream.showingCount.toLocaleString('en-US')} of ${stream.totalCount.toLocaleString('en-US')}`}
+                </span>
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

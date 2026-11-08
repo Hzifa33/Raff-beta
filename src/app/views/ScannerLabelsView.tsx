@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useRaffStore } from '../store/useRaffStore';
+import { Book } from '../types';
 import {
   cleanReferenceText,
   computeBookAvailability,
@@ -9,6 +10,7 @@ import {
 import { Icon } from '../components/Icons';
 import { printHtml } from '../lib/print';
 import { playSound } from '../lib/sound';
+import { useVirtualStream } from '../lib/useVirtualStream';
 
 export function ScannerLabelsView() {
   const {
@@ -25,18 +27,31 @@ export function ScannerLabelsView() {
 
   const [scanInput, setScanInput] = useState('');
   const [scanAction, setScanAction] = useState<'inspect' | 'borrow' | 'return'>('inspect');
-  const [selectedForPrint, setSelectedForPrint] = useState<string[]>(
+  const [selectedForPrint, setSelectedForPrint] = useState<string[]>(() =>
     books.slice(0, 8).map((b) => b.id)
   );
   const [searchPrint, setSearchPrint] = useState('');
+
+  // O(1) indexed lookup by reference number for hardware / manual scans
+  const booksByRef = useMemo(() => {
+    const map = new Map<string, Book>();
+    for (let i = 0; i < books.length; i++) {
+      const b = books[i];
+      if (b.referenceNumber) {
+        map.set(b.referenceNumber.toLowerCase(), b);
+      }
+    }
+    return map;
+  }, [books]);
+
+  // O(1) selection lookup set
+  const selectedSet = useMemo(() => new Set(selectedForPrint), [selectedForPrint]);
 
   const handleScanSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const cleaned = cleanReferenceText(scanInput);
     if (!cleaned) return;
-    const found = books.find(
-      (b) => b.referenceNumber.toLowerCase() === cleaned.toLowerCase()
-    );
+    const found = booksByRef.get(cleaned.toLowerCase());
     if (!found) {
       playSound('warning', settings.soundEnabled ?? true);
       pushToast(
@@ -82,7 +97,7 @@ export function ScannerLabelsView() {
   };
 
   const printSelectedSheet = () => {
-    const chosen = books.filter((b) => selectedForPrint.includes(b.id));
+    const chosen = books.filter((b) => selectedSet.has(b.id));
     if (chosen.length === 0) {
       pushToast(
         'warning',
@@ -149,15 +164,17 @@ export function ScannerLabelsView() {
     pushToast('success', isAr ? 'تم إرسال ورقة الملصقات للطباعة' : 'Label sheet sent to printer');
   };
 
-  const filteredBooks = books.filter((b) => {
-    if (!searchPrint.trim()) return true;
-    const q = searchPrint.toLowerCase();
-    return (
+  const filteredBooks = useMemo(() => {
+    const q = searchPrint.trim().toLowerCase();
+    if (!q) return books;
+    return books.filter((b) =>
       b.title.toLowerCase().includes(q) ||
       b.referenceNumber.toLowerCase().includes(q) ||
       (b.shelf || '').toLowerCase().includes(q)
     );
-  });
+  }, [books, searchPrint]);
+
+  const stream = useVirtualStream(filteredBooks, { initialCount: 48, step: 48 });
 
   return (
     <div className="stage-view">
@@ -367,8 +384,8 @@ export function ScannerLabelsView() {
                   gap: 10,
                 }}
               >
-                {filteredBooks.map((b) => {
-                  const isSelected = selectedForPrint.includes(b.id);
+                {stream.visibleItems.map((b) => {
+                  const isSelected = selectedSet.has(b.id);
                   const svg = renderBarcodeSVG(b.referenceNumber, {
                     height: 36,
                     moduleWidth: 1.45,
@@ -437,6 +454,31 @@ export function ScannerLabelsView() {
                     </div>
                   );
                 })}
+
+                {stream.hasMore && (
+                  <div
+                    style={{
+                      gridColumn: '1 / -1',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '16px 0',
+                    }}
+                  >
+                    <div ref={stream.sentinelRef} style={{ height: 1 }} />
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      onClick={stream.loadMore}
+                      style={{ fontSize: 12, padding: '6px 16px' }}
+                    >
+                      {isAr
+                        ? `عرض المزيد من الملصقات (${stream.visibleItems.length.toLocaleString('en-US')} / ${filteredBooks.length.toLocaleString('en-US')})`
+                        : `Load More Labels (${stream.visibleItems.length.toLocaleString('en-US')} / ${filteredBooks.length.toLocaleString('en-US')})`}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

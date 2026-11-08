@@ -19,6 +19,7 @@ export function AnalyticsView() {
   const isAr = lang === 'ar';
   const [dimension, setDimension] = useState<DimensionKey>('category');
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
+  const [drillLimit, setDrillLimit] = useState(50);
 
   const dimensions: { id: DimensionKey; ar: string; en: string }[] = [
     { id: 'category', ar: 'التصنيفات الموضوعية', en: 'Categories' },
@@ -37,11 +38,16 @@ export function AnalyticsView() {
       { name: string; titles: number; copies: number; borrowed: number; value: number }
     >();
 
-    for (const b of books) {
+    for (let i = 0; i < books.length; i++) {
+      const b = books[i];
       if (b.archivedAt) continue;
       const raw = String((b as any)[dimension] || '').trim();
       const key = raw || (isAr ? 'غير محدّد' : 'Unspecified');
-      const avail = computeBookAvailability(b);
+      const copies = Math.max(1, Number(b.copiesTotal) || 1);
+      let borrowed = 0;
+      if (b.loans && b.loans.length > 0) {
+        borrowed = computeBookAvailability(b).borrowedCopies;
+      }
       const cur = map.get(key) || {
         name: key,
         titles: 0,
@@ -50,22 +56,26 @@ export function AnalyticsView() {
         value: 0,
       };
       cur.titles += 1;
-      cur.copies += avail.copiesTotal;
-      cur.borrowed += avail.borrowedCopies;
-      cur.value += (b.price || 0) * avail.copiesTotal;
+      cur.copies += copies;
+      cur.borrowed += borrowed;
+      cur.value += (b.price || 0) * copies;
       map.set(key, cur);
     }
 
     return Array.from(map.values()).sort((a, b) => b.titles - a.titles);
   }, [books, dimension, isAr]);
 
-  const drilldownBooks = useMemo(() => {
-    if (!selectedGroup) return books.slice(0, 15);
+  const allDrilldown = useMemo(() => {
+    if (!selectedGroup) return books.slice(0, 50);
     return books.filter((b) => {
       const raw = String((b as any)[dimension] || '').trim() || (isAr ? 'غير محدّد' : 'Unspecified');
       return raw === selectedGroup;
     });
   }, [books, dimension, selectedGroup, isAr]);
+
+  const drilldownBooks = useMemo(() => {
+    return allDrilldown.slice(0, drillLimit);
+  }, [allDrilldown, drillLimit]);
 
   const fmt = (n: number | undefined | null) => Number(n || 0).toLocaleString('en-US');
 
@@ -266,6 +276,19 @@ export function AnalyticsView() {
                 <span className="ref-chip">{b.referenceNumber}</span>
               </div>
             ))}
+
+            {allDrilldown.length > drilldownBooks.length && (
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => setDrillLimit((prev) => prev + 50)}
+                style={{ fontSize: 12, padding: '8px 0', marginTop: 4 }}
+              >
+                {isAr
+                  ? `عرض المزيد (${drilldownBooks.length} / ${allDrilldown.length})`
+                  : `Show More (${drilldownBooks.length} / ${allDrilldown.length})`}
+              </button>
+            )}
           </div>
         </div>
       </div>
